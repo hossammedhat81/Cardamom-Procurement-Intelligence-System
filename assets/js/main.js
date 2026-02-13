@@ -1,11 +1,12 @@
 /* ═══════════════════════════════════════════════════════════
    Main Application — Core logic, event handlers, UI updates
    ═══════════════════════════════════════════════════════════
-   DATE-RANGE LOCKED SYSTEM:
+   DATE-RANGE LOCKED SYSTEM v9:
    • Upload CSV → detect date range → load fixed forecast JSON
    • NO DPPE, NO SHA-256, NO randomness, NO live prediction
    • If date range not recognized → show error
    ═══════════════════════════════════════════════════════════ */
+console.log('🟢 DATE-RANGE LOCKED SYSTEM v9 — NO randomness, NO DPPE, NO live forecast');
 
 // ── State ─────────────────────────────────────────────────
 let appState = {
