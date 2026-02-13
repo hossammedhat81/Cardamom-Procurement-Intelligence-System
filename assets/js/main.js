@@ -338,6 +338,8 @@ async function handleFileUpload(event) {
             if (typeof Swal !== 'undefined') {
                 const best = savedForecast.best_entry;
                 const period = savedForecast.forecast_period;
+                const bpd = savedForecast.best_purchase_day;
+                const bpdStr = savedForecast.best_purchase_day_str || '';
                 Swal.fire({
                     icon: 'success',
                     title: '✅ Forecast Retrieved from Library',
@@ -347,8 +349,15 @@ async function handleFileUpload(event) {
                             <p style="margin:8px 0;"><strong>${result.records.toLocaleString()}</strong> records ·
                                 <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
                             <hr style="margin:12px 0; border-color:#e2e8f0">
-                            ${best ? `
+                            ${bpd ? `
+                            <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; margin:10px 0; text-align:center;">
+                                <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">🎯 ${bpdStr}</p>
+                                <p style="font-size:11px; color:#888; margin:6px 0 0;">SHA-256: ${bpd.hash_prefix}… | Algorithm: Deterministic</p>
+                            </div>
+                            ` : (best ? `
                             <p>🎯 <strong>Best Entry:</strong> ${best.date_display || best.date}</p>
+                            ` : '')}
+                            ${best ? `
                             <p>💰 <strong>Price:</strong> SAR ${(best.price_sar || 0).toFixed(2)} / kg</p>
                             <p>✅ <strong>Confidence:</strong> ${(best.confidence || 0).toFixed(0)}%</p>
                             ` : ''}
@@ -521,16 +530,24 @@ async function runLivePredictionFlow(uploadResult) {
                 ? `${f.forecast_period.start} to ${f.forecast_period.end}`
                 : '';
             const best = f && f.best_entry;
+            const bpd = f && f.best_purchase_day;
+            const bpdStr = f && f.best_purchase_day_str || '';
             Swal.fire({
                 icon: 'success',
-                title: isLive ? '💾 Forecast Generated & Saved!' : 'Forecast Ready!',
-                html: isLive
-                    ? `<div style="text-align:left; padding:10px;">
+                title: '💾 Forecast Generated & Saved!',
+                html: `<div style="text-align:left; padding:10px;">
                          <p>Analyzed <strong>${uploadResult.records.toLocaleString()}</strong> records
                             (${uploadResult.from} to ${uploadResult.to})</p>
-                         ${best ? `
+                         ${bpd ? `
+                         <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; margin:12px 0; text-align:center;">
+                             <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">🎯 ${bpdStr}</p>
+                             <p style="font-size:11px; color:#888; margin:6px 0 0;">SHA-256: ${bpd.hash_prefix}… | Algorithm: Deterministic</p>
+                         </div>
+                         ` : (best ? `
                          <hr style="margin:10px 0;">
                          <p>🎯 <strong>Best Entry:</strong> ${best.date_display || best.date}</p>
+                         ` : '')}
+                         ${best ? `
                          <p>💰 <strong>Price:</strong> SAR ${(best.price_sar || 0).toFixed(2)} / kg</p>
                          <p>✅ <strong>Confidence:</strong> ${(best.confidence || 0).toFixed(0)}%</p>
                          ` : ''}
@@ -541,14 +558,6 @@ async function runLivePredictionFlow(uploadResult) {
                          <p style="font-size:12px; color:#888; margin-top:4px;">
                            📚 ${Forecasting.getLibrarySize()} forecast(s) in library
                          </p>
-                       </div>`
-                    : `<div style="text-align:left; padding:10px;">
-                         <p>🎯 <strong>Optimal Entry:</strong> Jan 31, 2026</p>
-                         <p>💰 <strong>Price:</strong> SAR 102.45 / kg</p>
-                         <p>✅ <strong>Confidence:</strong> 85%</p>
-                         <p>📊 <strong>Risk:</strong> Normal</p>
-                         <hr style="margin:12px 0;">
-                         <p style="color:#047857; font-weight:600;">Potential savings: SAR 4,650 on 500kg order</p>
                        </div>`,
                 timer: 8000,
                 showConfirmButton: true,
@@ -634,7 +643,10 @@ async function generateForecast() {
         // Render everything
         refreshDisplay();
 
-        showToast('Forecast generated & saved (deterministic — same data = same result)', 'success');
+        // Show SHA-256 best purchase day in toast if available
+        const gf = Forecasting.getForecast();
+        const gfBpdStr = gf && gf.best_purchase_day_str;
+        showToast(gfBpdStr || 'Forecast generated & saved (deterministic)', 'success');
     } catch (e) {
         progressContainer.style.display = 'none';
         btn.disabled = false;
@@ -673,7 +685,11 @@ function refreshDisplay() {
 
     document.getElementById('rec-badge').textContent = best.recommendation || 'BUY';
     document.getElementById('rec-confidence').textContent = `${(best.confidence || 75).toFixed(0)}% Confidence`;
-    document.getElementById('rec-date').textContent = `📅 ${best.date_display || best.date}`;
+    // Show SHA-256 best purchase day if available, else fallback to best_entry date
+    const bpd = forecast.best_purchase_day;
+    document.getElementById('rec-date').textContent = bpd
+        ? `📅 Best Purchase Day Next Month: ${bpd.date_str}`
+        : `📅 ${best.date_display || best.date}`;
     document.getElementById('rec-price').textContent = `${sym}${bestPrice.toFixed(2)} / kg`;
     document.getElementById('rec-savings').innerHTML = `💰 Save <strong>${sym}${savings.toFixed(2)}</strong> on ${quantity.toLocaleString()} kg order (${savingsPct}% below current)`;
 

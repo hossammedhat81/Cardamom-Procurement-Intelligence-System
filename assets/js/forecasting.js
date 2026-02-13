@@ -155,6 +155,67 @@ const Forecasting = (() => {
             forecastData.analysis_points = generateAnalysisPoints();
         }
 
+        // ── SHA-256 Deterministic Best Purchase Day override ──
+        // Apply the same SHA-256 algorithm to sample data for consistency
+        if (typeof LiveForecasting !== 'undefined' &&
+            typeof LiveForecasting.computeBestPurchaseDay === 'function' &&
+            Array.isArray(window.uploadedData) && window.uploadedData.length > 0) {
+
+            if (progressCb) progressCb(95, 'Computing SHA-256 deterministic best purchase day...');
+
+            const bestDay = LiveForecasting.computeBestPurchaseDay(window.uploadedData);
+            if (bestDay) {
+                console.log('[Forecasting] SHA-256 Best Purchase Day (sample):', bestDay.dateStr);
+
+                // Try to find this day in existing daily forecasts
+                const matchingEntry = forecastData.daily_forecasts.find(d => d.date === bestDay.dateISO);
+
+                if (matchingEntry) {
+                    // Use the existing forecast data for that day
+                    forecastData.best_entry = {
+                        date: matchingEntry.date,
+                        date_display: matchingEntry.date_display,
+                        price_usd: matchingEntry.price_usd,
+                        price_sar: matchingEntry.price_sar,
+                        price_inr: matchingEntry.price_inr,
+                        recommendation: matchingEntry.recommendation || 'BUY',
+                        confidence: matchingEntry.confidence || 75,
+                        risk: matchingEntry.risk || 'Normal',
+                    };
+                } else {
+                    // SHA-256 day falls outside the forecast range — create synthetic entry
+                    const avgUSD = forecastData.daily_forecasts.reduce((s, d) => s + d.price_usd, 0)
+                        / forecastData.daily_forecasts.length;
+                    forecastData.best_entry = {
+                        date: bestDay.dateISO,
+                        date_display: bestDay.dateDisplay,
+                        price_usd: round(avgUSD, 2),
+                        price_sar: round(avgUSD * EXCHANGE_RATES.SAR, 2),
+                        price_inr: round(avgUSD * EXCHANGE_RATES.INR, 2),
+                        recommendation: 'BUY',
+                        confidence: 82,
+                        risk: 'Normal',
+                    };
+                }
+
+                forecastData.best_purchase_day = {
+                    date_str: bestDay.dateStr,
+                    date_iso: bestDay.dateISO,
+                    date_display: bestDay.dateDisplay,
+                    month_name: bestDay.monthName,
+                    year: bestDay.year,
+                    day: bestDay.day,
+                    sha256_hash: bestDay.sha256Hash,
+                    hash_prefix: bestDay.hashPrefix,
+                    hash_int: bestDay.hashInt,
+                    days_in_month: bestDay.daysInMonth,
+                    algorithm: 'SHA-256 deterministic',
+                };
+                forecastData.best_purchase_day_str =
+                    `Best Purchase Day Next Month: ${bestDay.dateStr}`;
+            }
+        }
+
         isLivePrediction = false;
         if (progressCb) progressCb(100, 'Forecast complete!');
 
