@@ -1,0 +1,106 @@
+/* ═══════════════════════════════════════════════════════════
+   Dark Theme (Default) & Light Theme
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Dark Theme (Default) ──────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+    --bg-primary:     #0f172a;
+    --bg-secondary:   #1e293b;
+    --bg-tertiary:    #334155;
+    --bg-nav:         rgba(15, 23, 42, 0.85);
+
+    --text-primary:   #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted:     #64748b;
+
+    --accent-green:   #047857;
+    --accent-blue:    #3b82f6;
+    --accent-purple:  #8b5cf6;
+    --accent-yellow:  #fbbf24;
+    --accent-red:     #ef4444;
+
+    --border-color:   rgba(148, 163, 184, 0.15);
+
+    --accent-primary:       #047857;
+    --accent-primary-dark:  #065f46;
+    --accent-primary-light: #059669;
+
+    --gradient-hero:  linear-gradient(135deg, #047857 0%, #065f46 100%);
+    --gradient-card:  linear-gradient(135deg, #047857 0%, #065f46 100%);
+
+    --glow-green:     0 0 20px rgba(4, 120, 87, 0.4);
+    --glow-green-lg:  0 0 40px rgba(4, 120, 87, 0.25), 0 0 80px rgba(6, 95, 70, 0.12);
+
+    --plotly-bg:      #1e293b;
+    --plotly-paper:   #0f172a;
+    --plotly-grid:    #334155;
+    --plotly-text:    #94a3b8;
+}
+
+[data-theme="dark"] body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ── Light Theme ───────────────────────────────────────────── */
+[data-theme="light"] {
+    --bg-primary:     #f8fafc;
+    --bg-secondary:   #ffffff;
+    --bg-tertiary:    #f1f5f9;
+    --bg-nav:         rgba(248, 250, 252, 0.9);
+
+    --text-primary:   #0f172a;
+    --text-secondary: #475569;
+    --text-muted:     #94a3b8;
+
+    --accent-green:   #065f46;
+    --accent-blue:    #2563eb;
+    --accent-purple:  #7c3aed;
+    --accent-yellow:  #d97706;
+    --accent-red:     #dc2626;
+
+    --border-color:   rgba(15, 23, 42, 0.1);
+
+    --accent-primary:       #065f46;
+    --accent-primary-dark:  #064e3b;
+    --accent-primary-light: #047857;
+
+    --gradient-hero:  linear-gradient(135deg, #047857 0%, #065f46 100%);
+    --gradient-card:  linear-gradient(135deg, #047857 0%, #065f46 100%);
+
+    --glow-green:     0 0 15px rgba(4, 120, 87, 0.25);
+    --glow-green-lg:  0 0 30px rgba(6, 95, 70, 0.18), 0 0 60px rgba(4, 120, 87, 0.1);
+
+    --plotly-bg:      #ffffff;
+    --plotly-paper:   #f8fafc;
+    --plotly-grid:    #e2e8f0;
+    --plotly-text:    #475569;
+}
+
+[data-theme="light"] body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .hero-section {
+    background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+}
+
+[data-theme="light"] .glass-card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .theme-icon::after {
+    content: '☀️';
+}
+
+/* ── Section alternating backgrounds ───────────────────────── */
+.section:nth-child(even) {
+    background: var(--bg-secondary);
+}
+
+/* ── Plotly Chart Background Override ──────────────────────── */
+.js-plotly-plot .plotly .bg {
+    fill: var(--plotly-bg) !important;
+}

@@ -1,0 +1,43 @@
+{
+  "dataset": "India Cardamom Market Data",
+  "source": "Indian Spice Board & Market APIs",
+  "records": 2869,
+  "date_range": {
+    "from": "2018-04-03",
+    "to": "2026-01-09"
+  },
+  "features": 39,
+  "columns": [
+    "time", "year", "month", "week_of_year", "day_of_week",
+    "is_market_open", "is_flood_crisis", "is_lockdown",
+    "Avg.Price (Rs./Kg)", "MaxPrice (Rs./Kg)", "Daily_Spread",
+    "Total Qty Arrived (Kgs)", "Qty Sold (Kgs)", "Smooth_Qty_Arrived", "Auctioneer",
+    "temperature_2m_mean (°C)", "temperature_2m_max (°C)", "temperature_2m_min (°C)", "Temp_Diff",
+    "precipitation_sum (mm)", "relative_humidity_2m_mean (%)",
+    "soil_moisture_0_to_7cm_mean (m³/m³)", "et0_fao_evapotranspiration (mm)",
+    "Precip_7D", "RH_7D",
+    "Lag1", "Lag7", "Lag14", "Lag30", "Lag_MaxPrice_1", "Lag_Spread_1",
+    "MA7", "MA14", "MA30",
+    "Lag_Qty_Sold_1", "Lag_Total_Qty_Arrived_1",
+    "Precip_30D_Sum", "Precip_Lag_60", "Soil_Moisture_Lag_14"
+  ],
+  "summary_stats": {
+    "avg_price_usd": 28.45,
+    "min_price_usd": 12.20,
+    "max_price_usd": 52.80,
+    "avg_daily_volume_kg": 52340,
+    "total_trading_days": 2869
+  },
+  "last_values": {
+    "date": "2026-01-09",
+    "price_usd": 29.80,
+    "price_sar": 111.75,
+    "price_inr": 2488.30,
+    "temperature": 24.5,
+    "precipitation": 45.2,
+    "soil_moisture": 0.42,
+    "qty_arrived": 65200,
+    "qty_sold": 58400,
+    "volatility_30": 0.038
+  }
+}

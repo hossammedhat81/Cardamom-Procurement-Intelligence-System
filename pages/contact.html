@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact — Cardamom Procurement Intelligence</title>
+    <link rel="icon" href="../assets/images/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .page-header { text-align: center; padding: 6rem 2rem 3rem; }
+        .page-header h1 { font-size: 2.5rem; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .content-section { max-width: 700px; margin: 0 auto; padding: 2rem; }
+        .content-section h2 { color: var(--accent-primary); margin: 2rem 0 1rem; font-size: 1.4rem; }
+        .content-section p { color: var(--text-secondary); line-height: 1.8; }
+        .back-link { display: inline-block; margin: 2rem; color: var(--accent-primary); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .contact-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; margin: 1rem 0; text-align: center; }
+        .contact-card a { color: var(--accent-primary); text-decoration: none; font-weight: 600; }
+        .contact-card a:hover { text-decoration: underline; }
+        .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 2rem 0; }
+        .contact-item { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; text-align: center; }
+        .contact-item .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .contact-item strong { display: block; color: var(--text-primary); margin-bottom: 0.25rem; }
+        .contact-item span { color: var(--text-muted); font-size: 0.9rem; }
+        .form-group { margin: 1.5rem 0; }
+        .form-group label { display: block; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 600; }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--glass-border);
+            border-radius: 10px; background: var(--glass-bg); color: var(--text-primary);
+            font-family: inherit; font-size: 1rem; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--accent-primary); }
+        .form-group textarea { min-height: 120px; resize: vertical; }
+        .submit-btn {
+            background: var(--gradient-primary); color: white; border: none; padding: 0.75rem 2rem;
+            border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: transform 0.2s;
+        }
+        .submit-btn:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Back to Dashboard</a>
+
+    <div class="page-header">
+        <h1>📬 Contact & Support</h1>
+        <p style="color:var(--text-muted); margin-top:1rem; max-width:600px; margin-left:auto; margin-right:auto;">
+            Have questions, feedback, or data integration requests? Reach out below.
+        </p>
+    </div>
+
+    <div class="content-section">
+        <div class="contact-grid">
+            <div class="contact-item">
+                <div class="icon">🐙</div>
+                <strong>GitHub</strong>
+                <span><a href="https://github.com" target="_blank" rel="noopener">Open an Issue</a></span>
+            </div>
+            <div class="contact-item">
+                <div class="icon">📧</div>
+                <strong>Email</strong>
+                <span>support@cardamom-ai.com</span>
+            </div>
+            <div class="contact-item">
+                <div class="icon">💬</div>
+                <strong>Discussions</strong>
+                <span><a href="https://github.com" target="_blank" rel="noopener">GitHub Discussions</a></span>
+            </div>
+        </div>
+
+        <h2>Send a Message</h2>
+        <p>This form is for demonstration purposes. In a production deployment, connect it to a service like Formspree, Netlify Forms, or a GitHub Action.</p>
+
+        <form id="contact-form" onsubmit="handleSubmit(event)">
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" placeholder="Your name" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="you@example.com" required>
+            </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" placeholder="Bug report / Feature request / Data question">
+            </div>
+            <div class="form-group">
+                <label for="message">Message</label>
+                <textarea id="message" placeholder="Describe your question or feedback..." required></textarea>
+            </div>
+            <button type="submit" class="submit-btn">Send Message</button>
+            <p id="form-status" style="margin-top:1rem; color: var(--accent-secondary);"></p>
+        </form>
+
+        <h2>FAQ</h2>
+
+        <div class="contact-card">
+            <strong>Q: Can I use my own data?</strong>
+            <p style="margin-top:0.5rem;">Yes! Upload a CSV with at least 30 rows containing <code>time</code> and <code>Avg.Price (Rs./Kg)</code> columns. The system auto-fills missing features and generates live predictions.</p>
+        </div>
+
+        <div class="contact-card">
+            <strong>Q: How often are forecasts updated?</strong>
+            <p style="margin-top:0.5rem;">Default forecasts are pre-computed from our AI models. When you upload your own data, predictions are generated live in your browser using our statistical engine.</p>
+        </div>
+
+        <div class="contact-card">
+            <strong>Q: Is the system free to use?</strong>
+            <p style="margin-top:0.5rem;">Yes. The project is open-source. See the repository LICENSE for details.</p>
+        </div>
+    </div>
+
+    <div style="text-align:center; padding:3rem;">
+        <a href="../index.html" class="back-link">← Return to Dashboard</a>
+    </div>
+
+    <script>
+        function handleSubmit(e) {
+            e.preventDefault();
+            document.getElementById('form-status').textContent = '✅ Message sent (demo mode — connect a form backend for production)';
+            e.target.reset();
+        }
+    </script>
+</body>
+</html>

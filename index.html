@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered Cardamom Procurement Intelligence System — 30-day price forecasting with Triple-Model AI Engine">
+    <meta name="theme-color" content="#0f172a">
+    <title>Cardamom Procurement Intelligence</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Libraries (CDN) -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Verify PDF libraries loaded -->
+    <script>
+      window.addEventListener('load', () => {
+          console.log('📚 PDF Library Status:');
+          console.log('  html2canvas:', typeof html2canvas !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+          console.log('  jsPDF:', typeof window.jspdf !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+          console.log('  autoTable:', typeof window.jspdf?.jsPDF?.prototype?.autoTable === 'function' ? '✅ Loaded' : '❌ Missing');
+      });
+    </script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/dark-theme.css">
+    <link rel="stylesheet" href="assets/css/animations.css">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <link rel="apple-touch-icon" href="assets/images/icon-192.png">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader-content">
+            <div class="loader-icon">🌿</div>
+            <h2>Cardamom Intelligence</h2>
+            <div class="loader-bar"><div class="loader-progress"></div></div>
+            <p class="loader-text">Loading AI models...</p>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#" class="nav-brand">
+                <span class="nav-icon">🌿</span>
+                <span class="nav-title">Cardamom Intelligence</span>
+            </a>
+            <div class="nav-links" id="nav-links">
+                <a href="#hero" class="nav-link active">Home</a>
+                <a href="#forecast" class="nav-link">Forecast</a>
+                <a href="#analytics" class="nav-link">Analytics</a>
+                <a href="#calculator" class="nav-link">Calculator</a>
+                <a href="#whatif" class="nav-link">What-If</a>
+                <a href="#export" class="nav-link">Export</a>
+                <a href="pages/about.html" class="nav-link">About</a>
+            </div>
+            <div class="nav-actions">
+                <div class="currency-selector">
+                    <select id="currency-select" aria-label="Select currency">
+                        <option value="USD">🇺🇸 USD</option>
+                        <option value="SAR" selected>🇸🇦 SAR</option>
+                        <option value="INR">🇮🇳 INR</option>
+                    </select>
+                </div>
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="hero" class="hero-section">
+        <div class="hero-particles" id="hero-particles"></div>
+        <div class="hero-content fade-in">
+            <div class="hero-badge">Triple-Model AI Engine</div>
+            <h1 class="hero-title">
+                Cardamom Procurement<br>
+                <span class="gradient-text">Intelligence System</span>
+            </h1>
+            <p class="hero-subtitle">
+                AI-powered 30-day price forecasting with TimesFM, LSTM-CNN & XGBoost.
+                Make data-driven procurement decisions with confidence.
+            </p>
+            <div class="hero-stats" id="hero-stats">
+                <div class="hero-stat slide-up" style="--delay:0.1s">
+                    <span class="stat-value" id="stat-records">2,869</span>
+                    <span class="stat-label">Historical Records</span>
+                </div>
+                <div class="hero-stat slide-up" style="--delay:0.2s">
+                    <span class="stat-value" id="stat-features">39</span>
+                    <span class="stat-label">AI Features</span>
+                </div>
+                <div class="hero-stat slide-up" style="--delay:0.3s">
+                    <span class="stat-value">3</span>
+                    <span class="stat-label">AI Models</span>
+                </div>
+                <div class="hero-stat slide-up" style="--delay:0.4s">
+                    <span class="stat-value">30</span>
+                    <span class="stat-label">Day Forecast</span>
+                </div>
+            </div>
+            <div class="hero-actions slide-up" style="--delay:0.5s">
+                <button class="btn btn-primary btn-lg pulse" id="btn-get-forecast" onclick="scrollToSection('forecast')">
+                    🔮 Get Your Forecast
+                </button>
+                <button class="btn btn-outline btn-lg" onclick="scrollToSection('analytics')">
+                    📊 View Analytics
+                </button>
+            </div>
+            <div class="hero-updated" id="hero-updated"></div>
+        </div>
+    </section>
+
+    <!-- Data Upload Section -->
+    <section id="data" class="section">
+        <div class="container">
+            <div class="section-header fade-in">
+                <h2>📂 Data Source</h2>
+                <p>Load sample data or upload your own CSV for custom forecasting</p>
+            </div>
+            <div class="data-cards">
+                <div class="data-card glass-card fade-in" style="--delay:0.1s">
+                    <div class="data-card-icon">📦</div>
+                    <h3>Sample Data</h3>
+                    <p>India Cardamom dataset (2018–2026) with 2,869 records and 39 features</p>
+                    <button class="btn btn-primary" id="btn-load-sample" onclick="loadSampleData()">
+                        Load Sample Data
+                    </button>
+                    <div class="data-status" id="sample-status"></div>
+                </div>
+                <div class="data-card glass-card fade-in" style="--delay:0.2s">
+                    <div class="data-card-icon">📤</div>
+                    <h3>Upload CSV &amp; Predict</h3>
+                    <p>Upload any CSV (min 30 rows) — get live 30-day predictions instantly</p>
+                    <label class="btn btn-outline file-upload-btn" for="csv-upload">
+                        Choose File
+                    </label>
+                    <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="handleFileUpload(event)">
+                    <div class="data-status" id="upload-status"></div>
+                    <p style="font-size:0.8rem; margin-top:8px; opacity:0.7;">
+                        <a href="assets/data/test-upload-feb-mar-2026.csv" download style="color:var(--accent-primary)">
+                            Download sample CSV
+                        </a>
+                    </p>
+                    <details style="font-size:0.75rem; margin-top:6px; opacity:0.65; cursor:pointer;">
+                        <summary style="color:var(--accent-primary)">More test scenarios</summary>
+                        <div style="margin-top:4px; line-height:1.8;">
+                            <a href="assets/data/test-scenarios/test-mar-apr-2026.csv" download style="color:var(--accent-primary)">Volatile (Mar-Apr)</a><br>
+                            <a href="assets/data/test-scenarios/test-apr-may-2026.csv" download style="color:var(--accent-primary)">Downtrend (Apr-May)</a><br>
+                            <a href="assets/data/test-scenarios/test-may-jun-2026.csv" download style="color:var(--accent-primary)">Rally (May-Jun)</a><br>
+                            <a href="assets/data/test-scenarios/test-jun-jul-2026.csv" download style="color:var(--accent-primary)">Bubble (Jun-Jul)</a><br>
+                            <a href="assets/data/test-scenarios/test-jul-aug-2026.csv" download style="color:var(--accent-primary)">Stabilization (Jul-Aug)</a>
+                        </div>
+                    </details>
+                </div>
+            </div>
+            <!-- Data Summary -->
+            <div class="data-summary glass-card fade-in" id="data-summary" style="display:none">
+                <h3>📋 Data Summary</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Records</span>
+                        <span class="summary-value" id="summary-records">—</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">From</span>
+                        <span class="summary-value" id="summary-from">—</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">To</span>
+                        <span class="summary-value" id="summary-to">—</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Features</span>
+                        <span class="summary-value" id="summary-features">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Forecast Section -->
+    <section id="forecast" class="section">
+        <div class="container">
+            <div class="section-header fade-in">
+                <h2>🔮 AI Procurement Intelligence</h2>
+                <p>Triple-model ensemble: TimesFM · LSTM-CNN · XGBoost</p>
+            </div>
+
+            <button class="btn btn-primary btn-lg btn-generate pulse" id="btn-generate" onclick="generateForecast()">
+                🚀 Generate 30-Day Forecast
+            </button>
+
+            <!-- Progress Bar -->
+            <div class="progress-container" id="progress-container" style="display:none">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p class="progress-text" id="progress-text">Initializing...</p>
+            </div>
+
+            <!-- Hero Recommendation Card -->
+            <div class="hero-recommendation" id="hero-recommendation" style="display:none">
+                <div class="recommendation-card glass-card">
+                    <div class="rec-header">
+                        <span class="rec-badge" id="rec-badge">STRONG BUY</span>
+                        <span class="rec-confidence" id="rec-confidence">92% Confidence</span>
+                    </div>
+                    <h2 class="rec-title">🎯 Optimal Buying Opportunity</h2>
+                    <div class="rec-date" id="rec-date">January 17, 2026</div>
+                    <div class="rec-price" id="rec-price">SAR 107.51/kg</div>
+                    <div class="rec-savings" id="rec-savings">
+                        💰 Save <strong>SAR 2,450</strong> on 500 kg order
+                    </div>
+                    <div class="rec-meta">
+                        <span id="rec-risk">⚠️ Risk: Normal</span>
+                        <span id="rec-trend">📊 30-day range: SAR 106.65 – SAR 110.85</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="metrics-grid" id="metrics-grid" style="display:none">
+                <div class="metric-card glass-card slide-up" style="--delay:0.1s">
+                    <span class="metric-icon">📉</span>
+                    <span class="metric-value" id="metric-lowest">—</span>
+                    <span class="metric-label">Lowest Price</span>
+                    <span class="metric-delta" id="metric-lowest-delta"></span>
+                </div>
+                <div class="metric-card glass-card slide-up" style="--delay:0.2s">
+                    <span class="metric-icon">📈</span>
+                    <span class="metric-value" id="metric-highest">—</span>
+                    <span class="metric-label">Highest Price</span>
+                    <span class="metric-delta" id="metric-highest-delta"></span>
+                </div>
+                <div class="metric-card glass-card slide-up" style="--delay:0.3s">
+                    <span class="metric-icon">🟢</span>
+                    <span class="metric-value" id="metric-buy-days">—</span>
+                    <span class="metric-label">Buy Signal Days</span>
+                </div>
+                <div class="metric-card glass-card slide-up" style="--delay:0.4s">
+                    <span class="metric-icon">🔴</span>
+                    <span class="metric-value" id="metric-risk-days">—</span>
+                    <span class="metric-label">High Risk Days</span>
+                </div>
+            </div>
+
+            <!-- Why This Recommendation -->
+            <div class="analysis-section glass-card" id="analysis-section" style="display:none">
+                <h3>🧠 Why This Recommendation?</h3>
+                <div class="analysis-points" id="analysis-points"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Analytics Section -->
+    <section id="analytics" class="section">
+        <div class="container">
+            <div class="section-header fade-in">
+                <h2>📊 Visual Analytics</h2>
+                <p>Interactive charts with advanced visualization</p>
+            </div>
+
+            <div class="chart-tabs" id="chart-tabs" style="display:none">
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="price-trend" onclick="switchTab('price-trend', this)">
+                        📈 Price Trend
+                    </button>
+                    <button class="tab-btn" data-tab="risk-calendar" onclick="switchTab('risk-calendar', this)">
+                        🗓️ Risk Calendar
+                    </button>
+                    <button class="tab-btn" data-tab="rec-pie" onclick="switchTab('rec-pie', this)">
+                        🥧 Recommendations
+                    </button>
+                    <button class="tab-btn" data-tab="confidence" onclick="switchTab('confidence', this)">
+                        🎯 Confidence
+                    </button>
+                </div>
+
+                <div class="tab-content active" id="tab-price-trend">
+                    <div id="chart-price-trend" class="chart-container"></div>
+                </div>
+                <div class="tab-content" id="tab-risk-calendar">
+                    <div id="chart-risk-calendar" class="chart-container"></div>
+                    <div class="calendar-legend">
+                        <span class="legend-item"><span class="legend-dot green"></span> Normal Risk — Safe to procure</span>
+                        <span class="legend-item"><span class="legend-dot red"></span> High Risk — Volatile conditions</span>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-rec-pie">
+                    <div id="chart-rec-pie" class="chart-container"></div>
+                    <div class="pie-insights" id="pie-insights"></div>
+                </div>
+                <div class="tab-content" id="tab-confidence">
+                    <div id="chart-confidence" class="chart-container"></div>
+                    <div class="confidence-breakdown" id="confidence-breakdown"></div>
+                </div>
+            </div>
+
+            <div class="no-data-message" id="analytics-placeholder">
+                <div class="placeholder-icon">📊</div>
+                <p>Generate a forecast to view interactive analytics</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cost Calculator -->
+    <section id="calculator" class="section">
+        <div class="container">
+            <div class="section-header fade-in">
+                <h2>💰 Cost Calculator</h2>
+                <p>Calculate potential savings based on your order quantity</p>
+            </div>
+
+            <div class="calculator-card glass-card fade-in">
+                <div class="calc-input-group">
+                    <label for="calc-quantity">Purchase Quantity (kg)</label>
+                    <input type="number" id="calc-quantity" value="500" min="1" max="50000" step="50"
+                           oninput="updateCalculator()" aria-label="Purchase quantity in kilograms">
+                    <input type="range" id="calc-slider" min="1" max="10000" value="500" step="50"
+                           oninput="syncQuantity(this.value)" class="calc-range" aria-label="Quantity slider">
+                </div>
+
+                <div class="calc-results" id="calc-results" style="display:none">
+                    <div class="calc-result-card">
+                        <span class="calc-label">Buy Today</span>
+                        <span class="calc-value" id="calc-today">—</span>
+                        <span class="calc-sub" id="calc-today-per">per kg</span>
+                    </div>
+                    <div class="calc-result-card highlight">
+                        <span class="calc-label">Buy Optimal Day</span>
+                        <span class="calc-value" id="calc-optimal">—</span>
+                        <span class="calc-sub" id="calc-optimal-per">per kg</span>
+                    </div>
+                    <div class="calc-result-card savings">
+                        <span class="calc-label">💰 Potential Savings</span>
+                        <span class="calc-value" id="calc-savings">—</span>
+                        <span class="calc-sub" id="calc-savings-pct"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Detailed Table -->
+    <section id="table" class="section">
+        <div class="container">
+            <div class="section-header fade-in">
+                <h2>📋 Detailed 30-Day Breakdown</h2>
+                <p>Sortable & filterable forecast data</p>
+            </div>
+
+            <div class="table-controls" id="table-controls" style="display:none">
+                <div class="filter-group">
+                    <label>Filter by Recommendation:</label>
+                    <div class="filter-chips" id="rec-filters">
+                        <button class="chip active" data-filter="STRONG BUY" onclick="toggleFilter(this)">🟢 STRONG BUY</button>
+                        <button class="chip active" data-filter="BUY" onclick="toggleFilter(this)">🟢 BUY</button>
+                        <button class="chip active" data-filter="ACCUMULATE" onclick="toggleFilter(this)">🟡 ACCUMULATE</button>
+                        <button class="chip active" data-filter="WAIT" onclick="toggleFilter(this)">🔴 WAIT</button>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Risk:</label>
+                    <div class="filter-chips" id="risk-filters">
+                        <button class="chip active" data-filter="Normal" onclick="toggleFilter(this)">✅ Normal</button>
+                        <button class="chip active" data-filter="High Risk" onclick="toggleFilter(this)">⚠️ High Risk</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrapper" id="table-wrapper" style="display:none">
+                <table class="forecast-table" id="forecast-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Date ↕</th>
+                            <th onclick="sortTable(1)">Price ↕</th>
+                            <th onclick="sortTable(2)">Daily % ↕</th>
+                            <th onclick="sortTable(3)">Total % ↕</th>
+                            <th onclick="sortTable(4)">Risk ↕</th>
+                            <th onclick="sortTable(5)">Action ↕</th>
+                            <th onclick="sortTable(6)">Confidence ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="forecast-tbody"></tbody>
+                </table>
+                <div class="table-footer">
+                    <span id="table-count">Showing 30 of 30 days</span>
+                </div>
+            </div>
+
+            <div class="no-data-message" id="table-placeholder">
+                <div class="placeholder-icon">📋</div>
+                <p>Generate a forecast to view the detailed breakdown</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- What-If Analysis -->
+    <section id="whatif" class="section">
+        <div class="container">
+            <div class="section-header fade-in">
+                <h2>🧪 What-If Analysis</h2>
+                <p>Adjust key features and see predicted price impact</p>
+            </div>
+
+            <div class="whatif-container glass-card fade-in">
+                <!-- Preset Scenarios -->
+                <div class="preset-scenarios">
+                    <h4>Quick Scenarios:</h4>
+                    <div class="preset-btns">
+                        <button class="btn btn-sm btn-outline" onclick="applyPreset('monsoon')">🌧️ Heavy Monsoon</button>
+                        <button class="btn btn-sm btn-outline" onclick="applyPreset('shortage')">📦 Market Shortage</button>
+                        <button class="btn btn-sm btn-outline" onclick="applyPreset('optimal')">☀️ Optimal Conditions</button>
+                        <button class="btn btn-sm btn-outline" onclick="applyPreset('crisis')">🌊 Flood Crisis</button>
+                    </div>
+                </div>
+
+                <div class="whatif-grid">
+                    <div class="whatif-group">
+                        <h4>🌤️ Weather</h4>
+                        <div class="slider-group">
+                            <label>🌡️ Temperature (°C): <span id="temp-val">25</span></label>
+                            <input type="range" id="wif-temp" min="10" max="40" value="25" step="0.5"
+                                   oninput="updateSliderLabel('temp-val', this.value)" class="styled-range"
+                                   aria-label="Temperature">
+                        </div>
+                        <div class="slider-group">
+                            <label>🌧️ Precipitation Lag 60 (mm): <span id="precip-val">50</span></label>
+                            <input type="range" id="wif-precip" min="0" max="500" value="50" step="5"
+                                   oninput="updateSliderLabel('precip-val', this.value)" class="styled-range"
+                                   aria-label="Precipitation">
+                        </div>
+                        <div class="slider-group">
+                            <label>🌱 Soil Moisture: <span id="soil-val">0.28</span></label>
+                            <input type="range" id="wif-soil" min="0" max="1" value="0.28" step="0.01"
+                                   oninput="updateSliderLabel('soil-val', this.value)" class="styled-range"
+                                   aria-label="Soil moisture">
+                        </div>
+                    </div>
+                    <div class="whatif-group">
+                        <h4>📦 Market Supply</h4>
+                        <div class="slider-group">
+                            <label>📦 Qty Arrived (kg): <span id="qty-arr-val">50,000</span></label>
+                            <input type="range" id="wif-qty-arr" min="0" max="200000" value="50000" step="1000"
+                                   oninput="updateSliderLabel('qty-arr-val', Number(this.value).toLocaleString())" class="styled-range"
+                                   aria-label="Quantity arrived">
+                        </div>
+                        <div class="slider-group">
+                            <label>🏷️ Qty Sold (kg): <span id="qty-sold-val">40,000</span></label>
+                            <input type="range" id="wif-qty-sold" min="0" max="200000" value="40000" step="1000"
+                                   oninput="updateSliderLabel('qty-sold-val', Number(this.value).toLocaleString())" class="styled-range"
+                                   aria-label="Quantity sold">
+                        </div>
+                        <div class="slider-group">
+                            <label>💰 Max Price (Rs/Kg): <span id="max-price-val">2,500</span></label>
+                            <input type="range" id="wif-max-price" min="500" max="5000" value="2500" step="50"
+                                   oninput="updateSliderLabel('max-price-val', Number(this.value).toLocaleString())" class="styled-range"
+                                   aria-label="Max price">
+                        </div>
+                    </div>
+                    <div class="whatif-group">
+                        <h4>🏛️ Market Status</h4>
+                        <div class="toggle-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="wif-market-open" checked>
+                                <span class="toggle-switch"></span>
+                                ✅ Market Open
+                            </label>
+                        </div>
+                        <div class="toggle-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="wif-flood">
+                                <span class="toggle-switch"></span>
+                                🌊 Flood Crisis
+                            </label>
+                        </div>
+                        <div class="toggle-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="wif-lockdown">
+                                <span class="toggle-switch"></span>
+                                🔒 Lockdown
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg" onclick="runWhatIf()" style="margin-top: 2rem; width: 100%;">
+                    🔮 Predict Custom Scenario
+                </button>
+
+                <!-- What-If Results -->
+                <div class="whatif-results" id="whatif-results" style="display:none">
+                    <div class="whatif-result-card">
+                        <span class="whatif-label">Predicted Price</span>
+                        <span class="whatif-value" id="wif-predicted">—</span>
+                    </div>
+                    <div class="whatif-result-card">
+                        <span class="whatif-label">Baseline Price</span>
+                        <span class="whatif-value" id="wif-baseline">—</span>
+                    </div>
+                    <div class="whatif-result-card" id="wif-diff-card">
+                        <span class="whatif-label">Difference</span>
+                        <span class="whatif-value" id="wif-difference">—</span>
+                        <span class="whatif-delta" id="wif-delta"></span>
+                    </div>
+                    <div class="whatif-signal" id="wif-signal"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Export Section -->
+    <section id="export" class="section">
+        <div class="container">
+            <div class="section-header fade-in">
+                <h2>📥 Export Reports</h2>
+                <p>Download comprehensive reports in CSV or PDF format</p>
+            </div>
+
+            <div class="export-grid" id="export-grid">
+                <div class="export-card glass-card fade-in" style="--delay:0.1s">
+                    <div class="export-icon">📊</div>
+                    <h3>CSV Data Export</h3>
+                    <p>Full 30-day forecast data with all metrics</p>
+                    <button class="btn btn-primary" onclick="exportCSV()" id="btn-export-csv" disabled>
+                        Download CSV
+                    </button>
+                </div>
+                <div class="export-card glass-card fade-in" style="--delay:0.2s">
+                    <div class="export-icon">📄</div>
+                    <h3>PDF Report</h3>
+                    <p>Professional 4-page report with charts & analysis</p>
+                    <button class="btn btn-primary" onclick="exportPDF()" id="btn-export-pdf" disabled>
+                        Download PDF
+                    </button>
+                </div>
+                <div class="export-card glass-card fade-in" style="--delay:0.3s">
+                    <div class="export-icon">🔗</div>
+                    <h3>Share Forecast</h3>
+                    <p>Generate a shareable link with current forecast parameters</p>
+                    <button class="btn btn-outline" onclick="shareLink()">
+                        Copy Link
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h4>🌿 Cardamom Intelligence</h4>
+                    <p>AI-powered procurement decisions for the global cardamom market.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Models</h4>
+                    <ul>
+                        <li>📈 TimesFM — Price Forecast</li>
+                        <li>🧠 LSTM-CNN — Risk Assessment</li>
+                        <li>🎯 XGBoost — Action Signal</li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="pages/about.html">About the Project</a></li>
+                        <li><a href="pages/docs.html">Documentation</a></li>
+                        <li><a href="pages/contact.html">Contact & Support</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Exchange Rates</h4>
+                    <ul>
+                        <li>🇺🇸 1 USD (Base)</li>
+                        <li>🇸🇦 3.75 SAR</li>
+                        <li>🇮🇳 83.50 INR</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Cardamom Procurement Intelligence. All rights reserved.</p>
+                <p class="footer-note">Fixed exchange rates. Consult your bank for live rates.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Back to Top -->
+    <button class="back-to-top" id="back-to-top" aria-label="Back to top" onclick="scrollToTop()">↑</button>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="assets/js/data-loader.js?v=4"></script>
+    <script src="assets/js/live-forecasting.js?v=4"></script>
+    <script src="assets/js/forecasting.js?v=4"></script>
+    <script src="assets/js/charts.js?v=4"></script>
+    <script src="assets/js/pdf-export.js?v=4"></script>
+    <script src="assets/js/main.js?v=4"></script>
+</body>
+</html>

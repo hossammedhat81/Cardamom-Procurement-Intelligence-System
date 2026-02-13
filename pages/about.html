@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About — Cardamom Procurement Intelligence</title>
+    <link rel="icon" href="../assets/images/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .page-header { text-align: center; padding: 6rem 2rem 3rem; }
+        .page-header h1 { font-size: 2.5rem; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .content-section { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        .content-section h2 { color: var(--accent-primary); margin: 2rem 0 1rem; font-size: 1.5rem; }
+        .content-section p, .content-section li { color: var(--text-secondary); line-height: 1.8; }
+        .model-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.5rem; margin: 1rem 0; }
+        .model-card h3 { color: var(--text-primary); margin-bottom: 0.5rem; }
+        .model-card .badge { display: inline-block; background: var(--accent-primary); color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; margin-bottom: 0.5rem; }
+        .back-link { display: inline-block; margin: 2rem; color: var(--accent-primary); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .pipeline-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+        .step { text-align: center; padding: 1.5rem 1rem; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; }
+        .step .num { font-size: 2rem; font-weight: 800; color: var(--accent-primary); }
+        .step p { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem; }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Back to Dashboard</a>
+
+    <div class="page-header">
+        <h1>🌿 About the System</h1>
+        <p style="color:var(--text-muted); margin-top:1rem; max-width:600px; margin-left:auto; margin-right:auto;">
+            Understanding how three AI models work together to predict Indian cardamom prices.
+        </p>
+    </div>
+
+    <div class="content-section">
+        <h2>Triple-Model AI Pipeline</h2>
+        <p>Our forecasting engine combines three fundamentally different AI architectures to produce consensus predictions, reducing the risk of any single model's blind spots.</p>
+
+        <div class="pipeline-steps">
+            <div class="step">
+                <div class="num">1</div>
+                <strong>Data Collection</strong>
+                <p>2,869+ records of daily cardamom market data, weather, and supply chain metrics</p>
+            </div>
+            <div class="step">
+                <div class="num">2</div>
+                <strong>Parallel Inference</strong>
+                <p>Three models process data simultaneously with different perspectives</p>
+            </div>
+            <div class="step">
+                <div class="num">3</div>
+                <strong>Consensus</strong>
+                <p>Results are combined using weighted voting based on model confidence</p>
+            </div>
+            <div class="step">
+                <div class="num">4</div>
+                <strong>Decision</strong>
+                <p>Actionable recommendations generated using a multi-factor decision matrix</p>
+            </div>
+        </div>
+
+        <h2>The Models</h2>
+
+        <div class="model-card">
+            <span class="badge">Time Series Foundation</span>
+            <h3>🕐 Google TimesFM</h3>
+            <p>A foundation model for time-series forecasting pre-trained on billions of data points. It excels at capturing long-horizon trends, seasonal patterns, and regime changes in the cardamom market. Serves as the price-direction backbone of our pipeline.</p>
+        </div>
+
+        <div class="model-card">
+            <span class="badge">Deep Learning</span>
+            <h3>🧠 LSTM-CNN 34-Layer</h3>
+            <p>A hybrid architecture combining Long Short-Term Memory (LSTM) networks for sequential pattern recognition with Convolutional Neural Networks (CNN) for spatial feature extraction. With 34 layers, this model captures complex non-linear relationships between weather, supply, and price volatility.</p>
+        </div>
+
+        <div class="model-card">
+            <span class="badge">Gradient Boosting</span>
+            <h3>📊 XGBoost v17</h3>
+            <p>An ensemble gradient-boosted decision tree model trained specifically on tabular cardamom market features. It excels at binary buy/sell classification using features like auction quantities, weather lags, and price momentum. Version 17 includes flood and lockdown indicators.</p>
+        </div>
+
+        <h2>Decision Matrix</h2>
+        <p>Recommendations are generated using a multi-signal approach:</p>
+        <ul style="padding-left:1.5rem; margin:1rem 0;">
+            <li><strong>STRONG BUY:</strong> Price dip &gt; 1.5% + Normal risk + XGBoost buy signal</li>
+            <li><strong>BUY:</strong> XGBoost buy signal + Normal risk</li>
+            <li><strong>ACCUMULATE:</strong> Mild price decline + acceptable risk</li>
+            <li><strong>WAIT:</strong> Rising prices or elevated risk</li>
+        </ul>
+
+        <h2>Data Sources</h2>
+        <p>Historical data sourced from the Indian Spice Board auction records (Bodinayakanur market), supplemented with IMD weather data, soil moisture indices, and supply chain disruption flags. 21 engineered features including lagged prices, rolling averages, EMAs, and binary event indicators.</p>
+    </div>
+
+    <div style="text-align:center; padding:3rem;">
+        <a href="../index.html" class="back-link">← Return to Dashboard</a>
+    </div>
+</body>
+</html>

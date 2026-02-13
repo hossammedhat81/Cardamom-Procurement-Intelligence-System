@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation — Cardamom Procurement Intelligence</title>
+    <link rel="icon" href="../assets/images/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .page-header { text-align: center; padding: 6rem 2rem 3rem; }
+        .page-header h1 { font-size: 2.5rem; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .content-section { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        .content-section h2 { color: var(--accent-primary); margin: 2.5rem 0 1rem; font-size: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; }
+        .content-section h3 { color: var(--text-primary); margin: 1.5rem 0 0.5rem; }
+        .content-section p, .content-section li { color: var(--text-secondary); line-height: 1.8; }
+        .content-section code { background: var(--glass-bg); padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; color: var(--accent-secondary); }
+        .content-section pre { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; overflow-x: auto; margin: 1rem 0; }
+        .content-section pre code { background: none; padding: 0; }
+        .back-link { display: inline-block; margin: 2rem; color: var(--accent-primary); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .toc { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.5rem 2rem; margin: 1rem 0 2rem; }
+        .toc a { color: var(--accent-primary); text-decoration: none; display: block; padding: 4px 0; }
+        .toc a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Back to Dashboard</a>
+
+    <div class="page-header">
+        <h1>📖 Documentation</h1>
+        <p style="color:var(--text-muted); margin-top:1rem; max-width:600px; margin-left:auto; margin-right:auto;">
+            Complete guide to using the Cardamom Procurement Intelligence System.
+        </p>
+    </div>
+
+    <div class="content-section">
+        <div class="toc">
+            <strong>Table of Contents</strong>
+            <a href="#getting-started">1. Getting Started</a>
+            <a href="#data-loading">2. Data Loading</a>
+            <a href="#forecasting">3. Generating Forecasts</a>
+            <a href="#analytics">4. Analytics Dashboard</a>
+            <a href="#calculator">5. Cost Calculator</a>
+            <a href="#what-if">6. What-If Analysis</a>
+            <a href="#exports">7. Exporting Data</a>
+            <a href="#currency">8. Currency Support</a>
+            <a href="#deployment">9. Deployment</a>
+            <a href="#api">10. Data API</a>
+        </div>
+
+        <h2 id="getting-started">1. Getting Started</h2>
+        <p>The Cardamom Procurement Intelligence System is a static web application that runs entirely in your browser. No server or backend is required — all forecasting data is pre-computed.</p>
+        <h3>Quick Start</h3>
+        <ol style="padding-left:1.5rem;">
+            <li>Open <code>index.html</code> in a modern browser (Chrome, Firefox, Edge, Safari)</li>
+            <li>Click "Load Sample Data" or upload your own CSV</li>
+            <li>Click "Generate 30-Day AI Forecast"</li>
+            <li>Explore analytics, calculate costs, and export reports</li>
+        </ol>
+
+        <h2 id="data-loading">2. Data Loading</h2>
+        <h3>Sample Data</h3>
+        <p>Click the "Load Sample Data" button to load the built-in dataset of 2,869 rows spanning 2017–2025. This provides instant access to forecasting without any file uploads.</p>
+
+        <h3>Custom CSV Upload</h3>
+        <p>Upload your own CSV file with all 39 features (or at minimum <code>time</code> and <code>Avg.Price (Rs./Kg)</code>). Missing features are auto-filled with intelligent defaults.</p>
+        <pre><code>time, Avg.Price (Rs./Kg), MaxPrice (Rs./Kg), Total Qty Arrived (Kgs), ...</code></pre>
+        <p>Minimum 30 rows are required. The system accepts any date range and generates live 30-day predictions starting from the day after your last data point.</p>
+
+        <h2 id="forecasting">3. Generating Forecasts</h2>
+        <p>The "Generate 30-Day AI Forecast" button loads pre-computed predictions from three models:</p>
+        <ul style="padding-left:1.5rem;">
+            <li><strong>TimesFM:</strong> Trend and seasonal components</li>
+            <li><strong>LSTM-CNN:</strong> Risk classification and volatility estimation</li>
+            <li><strong>XGBoost:</strong> Binary buy/sell signals</li>
+        </ul>
+        <p>Results include daily price predictions, percentage changes, risk levels, and actionable recommendations.</p>
+
+        <h2 id="analytics">4. Analytics Dashboard</h2>
+        <p>Four visualization tabs provide different perspectives on the forecast:</p>
+        <ul style="padding-left:1.5rem;">
+            <li><strong>Price Trend:</strong> Line chart with daily % bars and optimal entry marker</li>
+            <li><strong>Risk Calendar:</strong> Day-by-day risk visualization</li>
+            <li><strong>Recommendation Breakdown:</strong> Donut chart of recommendation distribution</li>
+            <li><strong>Confidence Gauge:</strong> Average model confidence meter</li>
+        </ul>
+
+        <h2 id="calculator">5. Cost Calculator</h2>
+        <p>Enter your desired quantity (kg) using the input field or slider (100–10,000 kg). The calculator compares:</p>
+        <ul style="padding-left:1.5rem;">
+            <li><strong>Cost Today:</strong> Current market price × quantity</li>
+            <li><strong>Optimal Cost:</strong> Best entry price × quantity</li>
+            <li><strong>Savings:</strong> Difference in absolute and percentage terms</li>
+        </ul>
+
+        <h2 id="what-if">6. What-If Analysis</h2>
+        <p>Adjust 9 parameters to simulate different market scenarios:</p>
+        <ul style="padding-left:1.5rem;">
+            <li>Temperature (°C), Precipitation Lag (mm), Soil Moisture (0-1)</li>
+            <li>Quantity Arrived (kg), Quantity Sold (kg), Max Price (₹/kg)</li>
+            <li>Market Open (yes/no), Flood Event (yes/no), Lockdown (yes/no)</li>
+        </ul>
+        <h3>Preset Scenarios</h3>
+        <p>Four built-in presets: <code>Monsoon</code>, <code>Supply Shortage</code>, <code>Optimal Conditions</code>, <code>Crisis Mode</code>.</p>
+
+        <h2 id="exports">7. Exporting Data</h2>
+        <ul style="padding-left:1.5rem;">
+            <li><strong>CSV:</strong> Full 30-day forecast table with all columns</li>
+            <li><strong>PDF:</strong> 4-page executive report with summary, charts, and recommendations</li>
+            <li><strong>Share Link:</strong> Copies URL with current settings (currency, quantity)</li>
+        </ul>
+
+        <h2 id="currency">8. Currency Support</h2>
+        <p>Three currencies available via the top-right selector:</p>
+        <ul style="padding-left:1.5rem;">
+            <li><code>USD</code> ($) — Base currency</li>
+            <li><code>SAR</code> (ر.س) — Saudi Riyal at 3.75</li>
+            <li><code>INR</code> (₹) — Indian Rupee at 83.50</li>
+        </ul>
+        <p>All prices, charts, and exports update live when switching currencies.</p>
+
+        <h2 id="deployment">9. Deployment</h2>
+        <h3>GitHub Pages</h3>
+        <pre><code>1. Push the website/ folder to your repository
+2. Go to Settings → Pages
+3. Set Source to "Deploy from a branch"
+4. Select the branch and /website folder
+5. Save — site goes live at username.github.io/repo/website/</code></pre>
+
+        <h3>Local Development</h3>
+        <pre><code># Python
+python -m http.server 8000 --directory website
+
+# Node.js
+npx serve website</code></pre>
+
+        <h2 id="api">10. Data API</h2>
+        <p>To update forecasts, replace <code>assets/data/forecasts.json</code> with fresh predictions from the Python backend. Run:</p>
+        <pre><code>python generate_forecasts.py --output website/assets/data/forecasts.json</code></pre>
+        <p>The JSON schema must match the structure documented in <code>forecasts.json</code>.</p>
+    </div>
+
+    <div style="text-align:center; padding:3rem;">
+        <a href="../index.html" class="back-link">← Return to Dashboard</a>
+    </div>
+</body>
+</html>

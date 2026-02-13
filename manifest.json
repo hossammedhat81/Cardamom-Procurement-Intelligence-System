@@ -1,0 +1,19 @@
+{
+  "name": "Cardamom Intelligence",
+  "short_name": "Cardamom AI",
+  "description": "AI-Powered Cardamom Procurement Intelligence System — Triple-model forecasting for Indian cardamom market",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#047857",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/images/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "business", "productivity"]
+}
