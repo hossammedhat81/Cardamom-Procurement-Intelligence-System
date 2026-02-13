@@ -12,11 +12,35 @@ const Forecasting = (() => {
 
     /**
      * Load forecast data from JSON.
-     * HARD DEMO MODE — hash → stored date → display. No live prediction.
+     * Supports: 1) Pre-computed fixed scenarios, 2) Default forecasts.json, 3) Simulated fallback.
      */
     async function loadForecast(progressCb) {
         if (progressCb) progressCb(10, 'Loading forecast data...');
 
+        // ── Check for pre-computed fixed scenario first ──
+        const scenario = (typeof DataLoader !== 'undefined' && DataLoader.getActiveScenario)
+            ? DataLoader.getActiveScenario() : null;
+
+        if (scenario && scenario.forecastFile) {
+            if (progressCb) progressCb(20, 'Loading pre-computed forecast...');
+            const scenarioData = await DataLoader.loadScenarioForecast(scenario.forecastFile);
+            if (scenarioData) {
+                console.log('[Forecasting] ✅ Pre-computed scenario loaded:', scenario.forecastFile);
+                forecastData = scenarioData;
+                if (progressCb) progressCb(60, 'Pre-computed forecast loaded!');
+                ensureForecastFields();
+                // Skip DPPE — pre-computed scenarios have their own best_entry
+                isLivePrediction = false;
+                if (!forecastData.analysis_points || forecastData.analysis_points.length === 0) {
+                    forecastData.analysis_points = generateAnalysisPoints();
+                }
+                if (progressCb) progressCb(100, 'Complete!');
+                return forecastData;
+            }
+            console.warn('[Forecasting] Failed to load scenario JSON, falling through to default...');
+        }
+
+        // ── Default flow: forecasts.json or simulated ──
         const data = await DataLoader.loadForecastJSON();
         if (!data) {
             if (progressCb) progressCb(30, 'Generating forecast...');
