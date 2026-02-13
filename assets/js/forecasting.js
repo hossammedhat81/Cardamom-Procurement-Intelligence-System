@@ -11,7 +11,18 @@ const Forecasting = (() => {
     let isLivePrediction = false;
 
     // ── Forecast cache — same data = same forecast, no re-computation ──
+    // Persisted in localStorage so even page refresh returns same result.
     let _forecastCache = { dataHash: null, forecast: null };
+
+    // Try restoring from localStorage on init
+    try {
+        const stored = localStorage.getItem('_forecastCache');
+        if (stored) _forecastCache = JSON.parse(stored);
+    } catch (_) { /* ignore */ }
+
+    function _persistCache() {
+        try { localStorage.setItem('_forecastCache', JSON.stringify(_forecastCache)); } catch (_) { /* quota */ }
+    }
 
     function _hashData(data) {
         if (!data || !data.length) return null;
@@ -130,8 +141,9 @@ const Forecasting = (() => {
         forecastData = LiveForecasting.predict(uploadedData, progressCb);
         isLivePrediction = true;
 
-        // Cache the result
+        // Cache the result (memory + localStorage)
         _forecastCache = { dataHash: hash, forecast: forecastData };
+        _persistCache();
 
         console.log('[Forecasting] Live forecast complete. Period:',
             forecastData.forecast_period?.start, 'to', forecastData.forecast_period?.end,
@@ -226,7 +238,7 @@ const Forecasting = (() => {
         };
 
         return {
-            generated: new Date().toISOString(),
+            generated: '2026-01-09T12:00:00Z',
             last_historical_date: '2026-01-09',
             forecast_period: {
                 start: daily[0].date,
@@ -483,6 +495,17 @@ const Forecasting = (() => {
         return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
     }
 
+    /** Clear cached forecast (use when user uploads NEW data) */
+    function clearCache() {
+        _forecastCache = { dataHash: null, forecast: null };
+        try { localStorage.removeItem('_forecastCache'); } catch (_) {}
+    }
+
+    /** Return data fingerprint hash (so UI can show it) */
+    function getDataFingerprint() {
+        return _forecastCache.dataHash;
+    }
+
     return {
         loadForecast,
         runWhatIfScenario,
@@ -494,6 +517,8 @@ const Forecasting = (() => {
         getForecast,
         hasForecast,
         isLive: () => isLivePrediction,
+        clearCache,
+        getDataFingerprint,
         EXCHANGE_RATES,
         CURRENCY_SYMBOLS,
     };

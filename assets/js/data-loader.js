@@ -174,6 +174,11 @@ const DataLoader = (() => {
                     window.isCustomUpload = true;
                     window.isSampleData = false;
 
+                    // Clear any cached forecast so the live engine runs fresh for new data
+                    if (typeof Forecasting !== 'undefined' && Forecasting.clearCache) {
+                        Forecasting.clearCache();
+                    }
+
                     const dates = validatedData.data.filter(r => r._date).map(r => r._date);
                     const lastDate = dates.length ? dates[dates.length - 1] : null;
                     const lastPrice = validatedData.data.length

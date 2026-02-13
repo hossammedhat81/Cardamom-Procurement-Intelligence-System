@@ -309,7 +309,7 @@ const LiveForecasting = (() => {
         if (progressCb) progressCb(100, 'Live forecast complete!');
 
         return {
-            generated: new Date().toISOString(),
+            generated: formatDateISO(lastDate) + 'T12:00:00Z',
             source: 'live-prediction',
             model_versions: {
                 primary: 'LiveStatistical v1.0',

@@ -403,7 +403,10 @@ async function runLivePredictionFlow(uploadResult) {
 
         await sleep(500);
         progressContainer.style.display = 'none';
-        btn.textContent = 'Regenerate Forecast';
+        const isLiveBtnText = (typeof Forecasting.isLive === 'function') ? Forecasting.isLive() : window.isCustomUpload;
+        btn.textContent = isLiveBtnText
+            ? '✅ Live Forecast Generated (Deterministic)'
+            : '✅ Forecast Generated';
         btn.disabled = false;
 
         // Render all charts and tables
