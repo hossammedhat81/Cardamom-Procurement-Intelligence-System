@@ -4,6 +4,8 @@
 
 <h1 align="center">🌿 Cardamom Procurement Intelligence System</h1>
 
+| 🌐 Live Demo | [Cardamom Intelligence Dashboard](https://hossammedhat81.github.io/Cardamom-Procurement-Intelligence-System/) |
+
 <p align="center">
   <strong>AI-Powered Price Forecasting & Market Analysis for Smart Procurement Decisions</strong>
 </p>
