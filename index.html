@@ -610,24 +610,41 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- Force clear stale service workers and caches on every load -->
+    <!-- NUCLEAR CACHE BUSTER — unregister all SWs, clear all caches, force reload if stale -->
     <script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-            regs.forEach(function(r) { r.unregister(); });
-        });
-        caches.keys().then(function(keys) {
-            keys.forEach(function(k) { caches.delete(k); });
-        });
-    }
+    (function() {
+        var EXPECTED_VERSION = 'v10';
+        var storageKey = 'cardamom_version';
+        var currentVersion = '';
+        try { currentVersion = localStorage.getItem(storageKey) || ''; } catch(e) {}
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister(); });
+            });
+            caches.keys().then(function(keys) {
+                keys.forEach(function(k) { caches.delete(k); });
+            });
+        }
+
+        // If version mismatch, force a hard reload after clearing caches
+        if (currentVersion !== EXPECTED_VERSION) {
+            try { localStorage.setItem(storageKey, EXPECTED_VERSION); } catch(e) {}
+            // Only reload once to avoid infinite loop
+            if (!sessionStorage.getItem('cardamom_reloaded')) {
+                sessionStorage.setItem('cardamom_reloaded', '1');
+                setTimeout(function() { location.reload(true); }, 500);
+            }
+        }
+    })();
     </script>
 
     <!-- Scripts -->
-    <script src="assets/js/data-loader.js?v=9"></script>
+    <script src="assets/js/data-loader.js?v=10"></script>
     <!-- live-forecasting.js REMOVED — system is now date-range locked -->
-    <script src="assets/js/forecasting.js?v=9"></script>
-    <script src="assets/js/charts.js?v=9"></script>
-    <script src="assets/js/pdf-export.js?v=9"></script>
-    <script src="assets/js/main.js?v=9"></script>
+    <script src="assets/js/forecasting.js?v=10"></script>
+    <script src="assets/js/charts.js?v=10"></script>
+    <script src="assets/js/pdf-export.js?v=10"></script>
+    <script src="assets/js/main.js?v=10"></script>
 </body>
 </html>
