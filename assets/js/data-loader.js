@@ -24,6 +24,12 @@ const DataLoader = (() => {
             label: 'Sample Historical Data',
             bestEntry: { date: 'Jan 31, 2026', price: 102.45, confidence: 85 }
         },
+        // Same forecast when India_Cardamom_Final_Ready.csv is uploaded directly
+        '2018-03-04_2026-01-09': {
+            forecastFile: null,  // uses forecasts.json directly (same as sample)
+            label: 'Sample Historical Data',
+            bestEntry: { date: 'Jan 31, 2026', price: 102.45, confidence: 85 }
+        },
         // Test scenario: Feb–Mar 2026
         '2026-02-08_2026-03-09': {
             forecastFile: 'forecast-feb-mar-2026.json',
