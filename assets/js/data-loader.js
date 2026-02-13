@@ -85,40 +85,34 @@ const DataLoader = (() => {
                     // Sort by date ascending
                     data.sort((a, b) => (a._date || 0) - (b._date || 0));
 
-                    // Take last 90 days for manageable size + relevance
-                    const SAMPLE_DAYS = 90;
-                    const recentData = data.length > SAMPLE_DAYS
-                        ? data.slice(-SAMPLE_DAYS)
-                        : data;
+                    // Get full date range from ALL records
+                    const allDates = data.filter(r => r._date).map(r => r._date);
+                    const fullFrom = allDates.length ? formatDate(allDates[0]) : '—';
+                    const fullTo = allDates.length ? formatDate(allDates[allDates.length - 1]) : '—';
 
-                    console.log(`[DataLoader] Using last ${recentData.length} of ${data.length} rows`);
+                    // Store internally but DON'T set global upload flags
+                    // Sample data uses pre-computed forecasts.json, not live prediction
+                    rawData = data;
+                    parsedData = data;
+                    window.uploadedData = null;
+                    window.isCustomUpload = false;
 
-                    // Validate & fill missing features to reach 39
-                    const validatedData = validateAndFillFeatures(recentData, meta.fields);
-                    rawData = validatedData.data;
-                    parsedData = validatedData.data;
-
-                    // Set global flags so forecasting engine can find the data
-                    window.uploadedData = validatedData.data;
-                    window.isCustomUpload = false; // sample data, not user upload
-
-                    const dates = validatedData.data.filter(r => r._date).map(r => r._date);
-                    const lastPrice = validatedData.data.length
-                        ? parseFloat(validatedData.data[validatedData.data.length - 1]['Avg.Price (Rs./Kg)']) || 0
+                    const lastPrice = data.length
+                        ? parseFloat(data[data.length - 1]['Avg.Price (Rs./Kg)']) || 0
                         : 0;
 
                     console.log('[DataLoader] Sample data ready:',
-                        validatedData.data.length, 'rows,',
-                        'last date:', dates.length ? dates[dates.length - 1] : 'none',
+                        data.length, 'rows,',
+                        'period:', fullFrom, 'to', fullTo,
                         'last price: INR', lastPrice);
 
                     resolve({
                         success: true,
-                        records: validatedData.data.length,
+                        records: data.length,
                         totalRecords: data.length,
-                        from: dates.length ? formatDate(dates[0]) : '—',
-                        to: dates.length ? formatDate(dates[dates.length - 1]) : '—',
-                        features: validatedData.featureCount,
+                        from: fullFrom,
+                        to: fullTo,
+                        features: meta.fields.filter(f => f !== '_date').length,
                     });
                 },
                 error: (err) => reject(new Error('CSV parse error: ' + err.message)),

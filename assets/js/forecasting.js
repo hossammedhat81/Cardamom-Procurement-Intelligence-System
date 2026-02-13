@@ -14,17 +14,16 @@ const Forecasting = (() => {
      * Load pre-computed forecast (Option A strategy)
      */
     async function loadForecast(progressCb) {
-        // Check multiple signals for uploaded data
-        const hasUploadedRows = DataLoader.hasData();
+        // Check if user explicitly uploaded custom data
         const hasGlobalFlag = window.isCustomUpload === true;
-        const hasGlobalData = Array.isArray(window.uploadedData) && window.uploadedData.length >= 30;
+        const hasGlobalData = hasGlobalFlag && Array.isArray(window.uploadedData) && window.uploadedData.length >= 30;
         const liveEngineExists = typeof LiveForecasting !== 'undefined';
 
         console.log('[Forecasting] loadForecast routing check:',
-            { hasUploadedRows, hasGlobalFlag, hasGlobalData, liveEngineExists });
+            { hasGlobalFlag, hasGlobalData, liveEngineExists });
 
-        // If user uploaded data, run live prediction
-        if ((hasUploadedRows || hasGlobalFlag || hasGlobalData) && liveEngineExists) {
+        // Only route to live prediction when user explicitly uploaded custom data
+        if (hasGlobalFlag && hasGlobalData && liveEngineExists) {
             console.log('[Forecasting] --> Routing to LIVE prediction engine');
             return runLiveForecast(progressCb);
         }

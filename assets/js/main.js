@@ -221,7 +221,7 @@ async function loadSampleData() {
         // Close loading dialog
         if (typeof Swal !== 'undefined') Swal.close();
 
-        document.getElementById('sample-status').innerHTML = `✅ Loaded ${result.records} days from ${(result.totalRecords || 2869).toLocaleString()} total records`;
+        document.getElementById('sample-status').innerHTML = `✅ India Cardamom dataset (2018–2026) with ${result.records.toLocaleString()} records and ${result.features} features`;
 
         // Show summary
         showDataSummary(result);
@@ -230,15 +230,14 @@ async function loadSampleData() {
         if (typeof Swal !== 'undefined') {
             const goNow = await Swal.fire({
                 icon: 'success',
-                title: 'Sample Data Loaded!',
+                title: 'Historical Data Loaded!',
                 html: `
                     <div style="text-align:left; padding:10px;">
-                        <p><strong>${result.records.toLocaleString()}</strong> days loaded (from ${(result.totalRecords || 2869).toLocaleString()} total records)</p>
+                        <p><strong>${result.records.toLocaleString()}</strong> records loaded (${result.features} features)</p>
                         <p>Period: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
-                        <p>Features validated: <strong>${result.features}/39</strong></p>
                         <hr style="margin:12px 0; border-color:#e2e8f0">
                         <p style="color:#047857; font-weight:600;">
-                            Ready to generate 30-day predictions starting from the day after your last date!
+                            Ready to generate AI-powered 30-day forecast (Jan 10 – Feb 08, 2026)
                         </p>
                     </div>
                 `,
