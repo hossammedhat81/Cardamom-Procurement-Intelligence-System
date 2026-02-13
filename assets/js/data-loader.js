@@ -93,6 +93,24 @@ const DataLoader = (() => {
         }
     }
 
+    /**
+     * DPPE: Compute prediction date from file hash.
+     * Pure hash → date. No data parsing needed.
+     */
+    function computePredictionDate(fileHash) {
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const daysInMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate();
+        const intVal = parseInt(fileHash.substring(0, 8), 16);
+        const day = (intVal % daysInMonth) + 1;
+        const dd = String(day).padStart(2, '0');
+        const mm = String(nextMonth.getMonth() + 1).padStart(2, '0');
+        const yyyy = String(nextMonth.getFullYear());
+        const dateStr = `${dd}-${mm}-${yyyy}`;
+        console.log('[DPPE] Computed:', dateStr, '| hash prefix:', fileHash.substring(0, 8));
+        return dateStr;
+    }
+
     const REQUIRED_COLUMNS = ['time', 'Avg.Price (Rs./Kg)'];
 
     const ALL_39_FEATURES = [
@@ -286,14 +304,7 @@ const DataLoader = (() => {
                     window.isCustomUpload = true;
                     window.isSampleData = false;
 
-                    // Compute fingerprint for this upload so the UI can check the library
-                    let _uploadFingerprint = null;
-                    if (typeof Forecasting !== 'undefined' && Forecasting.computeFingerprint) {
-                        _uploadFingerprint = Forecasting.computeFingerprint(validatedData.data);
-                        console.log('[DataLoader] Upload fingerprint:', _uploadFingerprint);
-                    }
-
-                    // Reset in-memory forecast state (library is NOT cleared — it persists)
+                    // Reset in-memory forecast state
                     if (typeof Forecasting !== 'undefined' && Forecasting.clearCache) {
                         Forecasting.clearCache();
                     }
@@ -316,7 +327,6 @@ const DataLoader = (() => {
                         from: dates.length ? formatDate(dates[0]) : '—',
                         to: dates.length ? formatDate(dates[dates.length - 1]) : '—',
                         features: validatedData.featureCount,
-                        fingerprint: _uploadFingerprint,
                         rawFileHash: _rawFileHash,
                         storedPrediction: _storedPrediction,
                     });
@@ -452,5 +462,6 @@ const DataLoader = (() => {
         hasPrediction: (hash) => lookupPrediction(hash) !== null,
         getPrediction: lookupPrediction,
         savePrediction: savePredictionToStore,
+        computePredictionDate,
     };
 })();

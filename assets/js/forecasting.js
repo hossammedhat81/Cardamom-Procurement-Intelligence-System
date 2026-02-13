@@ -10,386 +10,75 @@ const Forecasting = (() => {
     let currentCurrency = 'SAR';
     let isLivePrediction = false;
 
-    // ── Forecast Library — permanent storage keyed by data fingerprint ──
-    // Each unique dataset gets ONE forecast, saved permanently in localStorage.
-    // Structure: { "fp_<hash>": { saved_at, input_summary, forecast }, ... }
-    let _forecastLibrary = {};
-
-    // Restore library from localStorage on init
-    try {
-        const stored = localStorage.getItem('cardamom_forecast_library');
-        if (stored) _forecastLibrary = JSON.parse(stored);
-        // Migrate: remove old single-slot cache if present
-        localStorage.removeItem('_forecastCache');
-        console.log('[Forecasting] Forecast library loaded:', Object.keys(_forecastLibrary).length, 'saved forecasts');
-    } catch (_) { /* ignore corrupt data */ }
-
-    function _persistLibrary() {
-        try {
-            localStorage.setItem('cardamom_forecast_library', JSON.stringify(_forecastLibrary));
-        } catch (_) {
-            // localStorage quota exceeded — prune oldest entries
-            const keys = Object.keys(_forecastLibrary);
-            if (keys.length > 10) {
-                // Keep only 10 most recent
-                const sorted = keys.sort((a, b) =>
-                    (_forecastLibrary[b].saved_at || '').localeCompare(_forecastLibrary[a].saved_at || ''));
-                const keep = sorted.slice(0, 10);
-                const pruned = {};
-                keep.forEach(k => { pruned[k] = _forecastLibrary[k]; });
-                _forecastLibrary = pruned;
-                try { localStorage.setItem('cardamom_forecast_library', JSON.stringify(_forecastLibrary)); } catch (_) {}
-            }
-        }
-    }
-
-    // Active fingerprint for the currently loaded data
-    let _activeFingerprint = null;
-
     /**
-     * Compute a deterministic fingerprint string from row data.
-     * Uses first 5 + last 5 + middle row + row count + date range.
-     * Returns a string like "fp_12345678".
-     */
-    function _computeFingerprint(data) {
-        if (!data || !data.length) return null;
-        const indices = [];
-        for (let i = 0; i < Math.min(5, data.length); i++) indices.push(i);
-        const mid = Math.floor(data.length / 2);
-        if (!indices.includes(mid)) indices.push(mid);
-        for (let i = Math.max(0, data.length - 5); i < data.length; i++) {
-            if (!indices.includes(i)) indices.push(i);
-        }
-        let fp = 'L' + data.length;
-        indices.forEach(idx => {
-            const row = data[idx];
-            if (!row) return;
-            const t = String(row.time || '');
-            const p = parseFloat(row['Avg.Price (Rs./Kg)']) || 0;
-            fp += '|' + t + ':' + p.toFixed(2);
-        });
-        let h = 0;
-        for (let i = 0; i < fp.length; i++) {
-            h = ((h << 5) - h) + fp.charCodeAt(i);
-            h = h & h;
-        }
-        return 'fp_' + Math.abs(h).toString(36);
-    }
-
-    /**
-     * Look up a saved forecast in the library by fingerprint.
-     * Returns the forecast object or null.
-     */
-    function lookupForecast(fingerprint) {
-        if (!fingerprint) return null;
-        const entry = _forecastLibrary[fingerprint];
-        return entry ? entry.forecast : null;
-    }
-
-    /**
-     * Save a forecast to the library under the given fingerprint.
-     */
-    function _saveForecast(fingerprint, inputData, forecast) {
-        const firstRow = inputData[0] || {};
-        const lastRow = inputData[inputData.length - 1] || {};
-        _forecastLibrary[fingerprint] = {
-            saved_at: new Date().toISOString(),
-            input_summary: {
-                rows: inputData.length,
-                first_date: String(firstRow.time || ''),
-                last_date: String(lastRow.time || ''),
-                last_price: parseFloat(lastRow['Avg.Price (Rs./Kg)']) || 0,
-            },
-            forecast: forecast,
-        };
-        _persistLibrary();
-        console.log('[Forecasting] 💾 Forecast saved to library. Fingerprint:', fingerprint,
-            '| Total saved:', Object.keys(_forecastLibrary).length);
-    }
-
-    /**
-     * DPPE: Build a best_purchase_day object from a stored "DD-MM-YYYY" date string.
-     * Used when loading a previously-stored prediction — NO recomputation needed.
-     */
-    function _buildBestPurchaseDayFromStored(dateStr) {
-        const parts = dateStr.split('-');
-        const day = parseInt(parts[0]);
-        const month = parseInt(parts[1]) - 1; // 0-indexed
-        const year = parseInt(parts[2]);
-        const date = new Date(year, month, day);
-        const monthNames = ['January','February','March','April','May','June',
-            'July','August','September','October','November','December'];
-        const dd = String(day).padStart(2, '0');
-        const mm = String(month + 1).padStart(2, '0');
-        const yyyy = String(year);
-        return {
-            date_str: dateStr,
-            date_iso: `${yyyy}-${mm}-${dd}`,
-            date_display: formatDateDisplay(date),
-            month_name: monthNames[month],
-            year: year,
-            day: day,
-            sha256_hash: 'stored',
-            hash_prefix: 'stored',
-            hash_int: 0,
-            days_in_month: new Date(year, month + 1, 0).getDate(),
-            algorithm: 'SHA-256 deterministic (DPPE stored)',
-        };
-    }
-
-    /**
-     * Load pre-computed forecast (Option A strategy)
+     * Load forecast data from JSON.
+     * HARD DEMO MODE — hash → stored date → display. No live prediction.
      */
     async function loadForecast(progressCb) {
-        // Sample data → always use pre-computed forecast
-        if (window.isSampleData === true) {
-            console.log('[Forecasting] --> Sample data detected, loading pre-computed forecast');
-        } else {
-            // Check if user explicitly uploaded custom data
-            const hasGlobalFlag = window.isCustomUpload === true;
-            const hasGlobalData = hasGlobalFlag && Array.isArray(window.uploadedData) && window.uploadedData.length >= 30;
-            const liveEngineExists = typeof LiveForecasting !== 'undefined';
-
-            console.log('[Forecasting] loadForecast routing check:',
-                { hasGlobalFlag, hasGlobalData, liveEngineExists });
-
-            if (hasGlobalFlag && hasGlobalData && liveEngineExists) {
-                console.log('[Forecasting] --> Routing to LIVE prediction engine');
-                return runLiveForecast(progressCb);
-            }
-        }
-
-        console.log('[Forecasting] --> Routing to pre-computed JSON forecast');
-
-        if (progressCb) progressCb(10, 'Loading AI forecast data...');
+        if (progressCb) progressCb(10, 'Loading forecast data...');
 
         const data = await DataLoader.loadForecastJSON();
-
         if (!data) {
-            // Generate simulated forecast from embedded defaults
-            if (progressCb) progressCb(30, 'Generating simulated forecast...');
+            if (progressCb) progressCb(30, 'Generating forecast...');
             forecastData = generateSimulatedForecast();
         } else {
             forecastData = data;
         }
 
-        if (progressCb) progressCb(60, 'Computing recommendations...');
-
-        // Ensure daily forecasts have all needed fields
+        if (progressCb) progressCb(60, 'Processing...');
         ensureForecastFields();
 
-        if (progressCb) progressCb(90, 'Building analysis...');
+        if (progressCb) progressCb(80, 'Applying prediction...');
+        _applyDPPE();
 
-        // Preserve pre-computed insights from JSON if present; generate only if missing
         if (!forecastData.analysis_points || forecastData.analysis_points.length === 0) {
             forecastData.analysis_points = generateAnalysisPoints();
         }
 
-        // ── DPPE: Deterministic Purchase Prediction Engine ──
-        // Check prediction store FIRST (raw file SHA-256 key)
-        // If stored → use it. If not → compute ONCE, store permanently.
-        const _rawHash = (typeof DataLoader !== 'undefined' && DataLoader.getRawFileHash)
-            ? DataLoader.getRawFileHash() : null;
-        const _storedPred = _rawHash
-            ? (typeof DataLoader !== 'undefined' && DataLoader.getPrediction
-                ? DataLoader.getPrediction(_rawHash) : null)
-            : null;
-
-        if (_storedPred) {
-            // ── STORED PREDICTION: No recomputation ──
-            console.log('[DPPE] Using stored prediction for sample data:', _storedPred);
-            if (progressCb) progressCb(95, 'Loading stored prediction (DPPE)...');
-
-            forecastData.best_purchase_day = _buildBestPurchaseDayFromStored(_storedPred);
-            forecastData.best_purchase_day_str =
-                `Best Purchase Day Next Month: ${_storedPred}`;
-
-            // Build best_entry from the stored date
-            const bpdObj = forecastData.best_purchase_day;
-            const matchingEntry = forecastData.daily_forecasts.find(d => d.date === bpdObj.date_iso);
-            if (matchingEntry) {
-                forecastData.best_entry = {
-                    date: matchingEntry.date,
-                    date_display: matchingEntry.date_display,
-                    price_usd: matchingEntry.price_usd,
-                    price_sar: matchingEntry.price_sar,
-                    price_inr: matchingEntry.price_inr,
-                    recommendation: matchingEntry.recommendation || 'BUY',
-                    confidence: matchingEntry.confidence || 75,
-                    risk: matchingEntry.risk || 'Normal',
-                };
-            } else {
-                const avgUSD = forecastData.daily_forecasts.reduce((s, d) => s + d.price_usd, 0)
-                    / forecastData.daily_forecasts.length;
-                forecastData.best_entry = {
-                    date: bpdObj.date_iso,
-                    date_display: bpdObj.date_display,
-                    price_usd: round(avgUSD, 2),
-                    price_sar: round(avgUSD * EXCHANGE_RATES.SAR, 2),
-                    price_inr: round(avgUSD * EXCHANGE_RATES.INR, 2),
-                    recommendation: 'BUY',
-                    confidence: 82,
-                    risk: 'Normal',
-                };
-            }
-
-        } else if (typeof LiveForecasting !== 'undefined' &&
-            typeof LiveForecasting.computeBestPurchaseDay === 'function' &&
-            Array.isArray(window.uploadedData) && window.uploadedData.length > 0) {
-
-            // ── FIRST COMPUTATION: compute and store permanently ──
-            if (progressCb) progressCb(95, 'Computing SHA-256 deterministic best purchase day...');
-
-            const bestDay = LiveForecasting.computeBestPurchaseDay(window.uploadedData);
-            if (bestDay) {
-                console.log('[Forecasting] SHA-256 Best Purchase Day (sample):', bestDay.dateStr);
-
-                // Save to DPPE prediction store (NEVER overwrite)
-                if (_rawHash) {
-                    DataLoader.savePrediction(_rawHash, bestDay.dateStr);
-                }
-
-                const matchingEntry = forecastData.daily_forecasts.find(d => d.date === bestDay.dateISO);
-                if (matchingEntry) {
-                    forecastData.best_entry = {
-                        date: matchingEntry.date,
-                        date_display: matchingEntry.date_display,
-                        price_usd: matchingEntry.price_usd,
-                        price_sar: matchingEntry.price_sar,
-                        price_inr: matchingEntry.price_inr,
-                        recommendation: matchingEntry.recommendation || 'BUY',
-                        confidence: matchingEntry.confidence || 75,
-                        risk: matchingEntry.risk || 'Normal',
-                    };
-                } else {
-                    const avgUSD = forecastData.daily_forecasts.reduce((s, d) => s + d.price_usd, 0)
-                        / forecastData.daily_forecasts.length;
-                    forecastData.best_entry = {
-                        date: bestDay.dateISO,
-                        date_display: bestDay.dateDisplay,
-                        price_usd: round(avgUSD, 2),
-                        price_sar: round(avgUSD * EXCHANGE_RATES.SAR, 2),
-                        price_inr: round(avgUSD * EXCHANGE_RATES.INR, 2),
-                        recommendation: 'BUY',
-                        confidence: 82,
-                        risk: 'Normal',
-                    };
-                }
-
-                forecastData.best_purchase_day = {
-                    date_str: bestDay.dateStr,
-                    date_iso: bestDay.dateISO,
-                    date_display: bestDay.dateDisplay,
-                    month_name: bestDay.monthName,
-                    year: bestDay.year,
-                    day: bestDay.day,
-                    sha256_hash: bestDay.sha256Hash,
-                    hash_prefix: bestDay.hashPrefix,
-                    hash_int: bestDay.hashInt,
-                    days_in_month: bestDay.daysInMonth,
-                    algorithm: 'SHA-256 deterministic',
-                };
-                forecastData.best_purchase_day_str =
-                    `Best Purchase Day Next Month: ${bestDay.dateStr}`;
-            }
-        }
-
         isLivePrediction = false;
-        if (progressCb) progressCb(100, 'Forecast complete!');
-
+        if (progressCb) progressCb(100, 'Complete!');
         return forecastData;
     }
 
     /**
-     * Run live in-browser prediction on uploaded data
+     * DPPE: Apply deterministic prediction date to forecastData.
+     * Hash → stored date → display. Zero recomputation.
      */
-    async function runLiveForecast(progressCb) {
-        // Try DataLoader first, fall back to window.uploadedData
-        let uploadedData = DataLoader.getData();
-        if (!uploadedData || uploadedData.length < 30) {
-            console.log('[Forecasting] DataLoader.getData() insufficient, trying window.uploadedData');
-            uploadedData = window.uploadedData;
-        }
-
-        if (!uploadedData || uploadedData.length < 30) {
-            throw new Error('Need at least 30 rows of uploaded data for live prediction');
-        }
-
-        // Defensive: ensure data is an array of row objects, not a summary object
-        if (!Array.isArray(uploadedData)) {
-            throw new Error('Uploaded data is not in the expected row format');
-        }
-
-        const lastRow = uploadedData[uploadedData.length - 1];
-        if (!lastRow || typeof lastRow !== 'object') {
-            throw new Error('Last data row is invalid or missing');
-        }
-
-        const lastPrice = parseFloat(lastRow['Avg.Price (Rs./Kg)']);
-        if (isNaN(lastPrice) || lastPrice <= 0) {
-            console.error('[Forecasting] Available columns:', Object.keys(lastRow));
-            throw new Error('Could not read price from data. Check that "Avg.Price (Rs./Kg)" column exists.');
-        }
-
-        // ── Library lookup: check if this exact data has a saved forecast ──
-        const fingerprint = _computeFingerprint(uploadedData);
-        _activeFingerprint = fingerprint;
-        const savedForecast = lookupForecast(fingerprint);
-
-        if (savedForecast) {
-            console.log('[Forecasting] ✅ Found saved forecast in library for', fingerprint);
-            forecastData = savedForecast;
-            isLivePrediction = true;
-
-            // ── DPPE: Ensure stored prediction is applied ──
-            const rawHash = (typeof DataLoader !== 'undefined' && DataLoader.getRawFileHash)
-                ? DataLoader.getRawFileHash() : null;
-            if (rawHash) {
-                const storedPred = DataLoader.getPrediction ? DataLoader.getPrediction(rawHash) : null;
-                if (storedPred && forecastData.best_purchase_day) {
-                    forecastData.best_purchase_day = _buildBestPurchaseDayFromStored(storedPred);
-                    forecastData.best_purchase_day_str =
-                        'Best Purchase Day Next Month: ' + storedPred;
-                }
-            }
-
-            if (progressCb) progressCb(100, 'Forecast loaded from library!');
-            return forecastData;
-        }
-
-        console.log('[Forecasting] 🚀 No saved forecast for', fingerprint,
-            '— generating new. Rows:', uploadedData.length,
-            'last price: INR', lastPrice,
-            'last date:', lastRow._date || lastRow.time);
-
-        forecastData = LiveForecasting.predict(uploadedData, progressCb);
-        isLivePrediction = true;
-
-        // ── DPPE: Check prediction store for raw file hash ──
+    function _applyDPPE() {
+        if (!forecastData) return;
         const rawHash = (typeof DataLoader !== 'undefined' && DataLoader.getRawFileHash)
             ? DataLoader.getRawFileHash() : null;
-        if (rawHash) {
-            const storedPred = DataLoader.getPrediction ? DataLoader.getPrediction(rawHash) : null;
-            if (storedPred) {
-                // Override with stored prediction — NO recomputation
-                console.log('[DPPE] Overriding with stored prediction:', storedPred);
-                forecastData.best_purchase_day = _buildBestPurchaseDayFromStored(storedPred);
-                forecastData.best_purchase_day_str =
-                    'Best Purchase Day Next Month: ' + storedPred;
-            } else if (forecastData.best_purchase_day && forecastData.best_purchase_day.date_str) {
-                // Save the newly computed prediction permanently
-                DataLoader.savePrediction(rawHash, forecastData.best_purchase_day.date_str);
-            }
+        if (!rawHash) return;
+
+        let predDate = DataLoader.getPrediction(rawHash);
+        if (!predDate) {
+            predDate = DataLoader.computePredictionDate(rawHash);
+            DataLoader.savePrediction(rawHash, predDate);
         }
 
-        // Save to library permanently
-        _saveForecast(fingerprint, uploadedData, forecastData);
+        const parts = predDate.split('-');
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const year = parseInt(parts[2]);
+        const pDate = new Date(year, month, day);
+        const monthNames = ['January','February','March','April','May','June',
+            'July','August','September','October','November','December'];
 
-        console.log('[Forecasting] Live forecast complete. Period:',
-            forecastData.forecast_period?.start, 'to', forecastData.forecast_period?.end,
-            'Best entry:', forecastData.best_entry?.date_display);
+        forecastData.best_purchase_day = {
+            date_str: predDate,
+            date_iso: `${parts[2]}-${parts[1]}-${parts[0]}`,
+            date_display: formatDateDisplay(pDate),
+            month_name: monthNames[month],
+            year, day,
+            algorithm: 'DPPE (SHA-256 hash-based)',
+        };
+        forecastData.best_purchase_day_str = 'Best Purchase Day Next Month: ' + predDate;
 
-        return forecastData;
+        if (forecastData.daily_forecasts) {
+            const match = forecastData.daily_forecasts.find(
+                d => d.date === forecastData.best_purchase_day.date_iso);
+            if (match) forecastData.best_entry = { ...match };
+        }
     }
 
     /**
@@ -735,45 +424,9 @@ const Forecasting = (() => {
         return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
     }
 
-    /** Clear the active in-memory forecast (does NOT delete from library) */
+    /** Clear the active in-memory forecast */
     function clearCache() {
-        _activeFingerprint = null;
         forecastData = null;
-    }
-
-    /** Compute fingerprint for given data (public, for UI to check library) */
-    function computeFingerprint(data) {
-        return _computeFingerprint(data);
-    }
-
-    /** Check if a saved forecast exists for a fingerprint */
-    function hasSavedForecast(fingerprint) {
-        return !!lookupForecast(fingerprint);
-    }
-
-    /** Load a saved forecast from library into active state and display it */
-    function loadSavedForecast(fingerprint) {
-        const saved = lookupForecast(fingerprint);
-        if (!saved) return null;
-        forecastData = saved;
-        isLivePrediction = true;
-        _activeFingerprint = fingerprint;
-        return forecastData;
-    }
-
-    /** Return the active data fingerprint */
-    function getDataFingerprint() {
-        return _activeFingerprint;
-    }
-
-    /** Get the number of saved forecasts in the library */
-    function getLibrarySize() {
-        return Object.keys(_forecastLibrary).length;
-    }
-
-    /** Get summary info for a fingerprint from the library */
-    function getLibraryEntry(fingerprint) {
-        return _forecastLibrary[fingerprint] || null;
     }
 
     return {
@@ -788,12 +441,6 @@ const Forecasting = (() => {
         hasForecast,
         isLive: () => isLivePrediction,
         clearCache,
-        computeFingerprint,
-        hasSavedForecast,
-        loadSavedForecast,
-        getDataFingerprint,
-        getLibrarySize,
-        getLibraryEntry,
         EXCHANGE_RATES,
         CURRENCY_SYMBOLS,
     };

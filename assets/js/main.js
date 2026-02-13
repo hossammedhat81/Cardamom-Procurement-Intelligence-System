@@ -202,7 +202,6 @@ async function loadSampleData() {
     btn.disabled = true;
     btn.textContent = 'Loading...';
 
-    // Show loading dialog
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             title: 'Loading Historical Data...',
@@ -217,16 +216,19 @@ async function loadSampleData() {
     try {
         const result = await DataLoader.loadSampleData();
         appState.dataLoaded = true;
-
-        // Close loading dialog
         if (typeof Swal !== 'undefined') Swal.close();
 
         document.getElementById('sample-status').innerHTML = `✅ <strong>${result.records.toLocaleString()} days</strong> loaded (full historical dataset)`;
-
-        // Show summary
         showDataSummary(result);
 
-        // Show success dialog with option to generate forecast
+        // ── DPPE: Hash → Stored Date → Display ──
+        const hash = result.rawFileHash;
+        let prediction = result.storedPrediction;
+        if (!prediction && hash) {
+            prediction = DataLoader.computePredictionDate(hash);
+            DataLoader.savePrediction(hash, prediction);
+        }
+
         if (typeof Swal !== 'undefined') {
             const goNow = await Swal.fire({
                 icon: 'success',
@@ -235,26 +237,31 @@ async function loadSampleData() {
                     <div style="text-align:left; padding:10px;">
                         <p>✅ <strong>${result.records.toLocaleString()} days</strong> loaded (full 8-year dataset)</p>
                         <p>📅 Period: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
-                        <p>📊 All <strong>${result.features} features</strong> validated</p>
-                        <hr style="margin:15px 0;">
-                        <p style="color:#047857; font-weight:bold;">
-                            🎯 Ready to predict next 30 days (Jan 10 - Feb 08, 2026)
-                        </p>
-                        <p style="font-size:14px; color:#666;">
-                            Using 8 years of historical patterns for accurate forecasting
+                        <hr style="margin:12px 0;">
+                        <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; text-align:center;">
+                            <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">
+                                🎯 Best Purchase Day Next Month: ${prediction}
+                            </p>
+                            <p style="font-size:11px; color:#888; margin:6px 0 0;">
+                                SHA-256: ${hash ? hash.substring(0, 16) : ''}… | DPPE Deterministic
+                            </p>
+                        </div>
+                        <hr style="margin:12px 0;">
+                        <p style="color:#047857; font-weight:600;">
+                            🔒 Same file = same prediction (permanently stored)
                         </p>
                     </div>
                 `,
-                confirmButtonText: 'Generate Forecast Now',
+                confirmButtonText: 'Generate Forecast Charts',
                 confirmButtonColor: '#047857',
                 showCancelButton: true,
-                cancelButtonText: 'Maybe Later',
+                cancelButtonText: 'Close',
             });
             if (goNow.isConfirmed) {
-                await runLivePredictionFlow(result);
+                await generateForecast();
             }
         } else {
-            showToast(`Data loaded — ${result.records} records ready`, 'success');
+            showToast('Best Purchase Day Next Month: ' + prediction, 'success');
         }
 
         btn.textContent = '✅ Loaded';
@@ -274,11 +281,10 @@ async function handleFileUpload(event) {
     const status = document.getElementById('upload-status');
     status.innerHTML = '<span style="color:#047857">Reading CSV file...</span>';
 
-    // Show loading indicator immediately
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             title: 'Processing Your Data...',
-            html: '<p>Reading and validating CSV file...</p>',
+            html: '<p>Reading and hashing CSV file...</p>',
             allowOutsideClick: false,
             allowEscapeKey: false,
             showConfirmButton: false,
@@ -289,144 +295,58 @@ async function handleFileUpload(event) {
     try {
         const result = await DataLoader.parseCSV(file);
         appState.dataLoaded = true;
-
-        // Close loading indicator
         if (typeof Swal !== 'undefined') Swal.close();
 
-        // Show success summary
         status.innerHTML = `<span style="color:#047857">Parsed ${result.records.toLocaleString()} rows from ${file.name}</span>`;
         showDataSummary(result);
 
-        // Check the forecast library: does this exact data already have a saved forecast?
-        const fp = result.fingerprint;
-        const hasSaved = fp && Forecasting.hasSavedForecast(fp);
-
-        // DPPE: Check prediction store for raw file hash
-        const rawHash = result.rawFileHash;
-        const dppeStored = result.storedPrediction;
-        if (dppeStored) {
-            console.log('[DPPE] Prediction already stored for this file:', dppeStored);
+        // ── DPPE: Hash → Stored Date → Display ──
+        const hash = result.rawFileHash;
+        let prediction = result.storedPrediction;
+        if (!prediction && hash) {
+            prediction = DataLoader.computePredictionDate(hash);
+            DataLoader.savePrediction(hash, prediction);
         }
 
-        if (hasSaved) {
-            // ═══ SAME DATA — load saved forecast instantly ═══
-            console.log('[main] 📚 Found saved forecast in library for', fp);
-            const savedEntry = Forecasting.getLibraryEntry(fp);
-            const savedForecast = Forecasting.loadSavedForecast(fp);
+        // Lock the Generate button
+        const btn = document.getElementById('btn-generate');
+        btn.textContent = '🔒 Prediction Saved';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'default';
+        btn.classList.remove('pulse');
 
-            // Immediately render the saved forecast
-            appState.forecastGenerated = true;
-            refreshDisplay();
-
-            // Lock the Generate button
-            const btn = document.getElementById('btn-generate');
-            btn.textContent = '🔒 Forecast Saved (Deterministic)';
-            btn.disabled = true;
-            btn.style.opacity = '0.7';
-            btn.style.cursor = 'default';
-            btn.classList.remove('pulse');
-            btn.onclick = function(e) {
-                e.preventDefault();
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Forecast Already Saved',
-                        html: '<p>This exact dataset was already analyzed.</p>' +
-                              '<p style="margin-top:8px;">Same data <strong>always</strong> produces the same forecast.</p>' +
-                              '<p style="margin-top:10px;color:#047857;">Upload a different dataset for a new forecast.</p>',
-                        confirmButtonColor: '#047857',
-                        timer: 4000,
-                    });
-                }
-                document.getElementById('forecast')?.scrollIntoView({ behavior: 'smooth' });
-            };
-
-            // Show "Data Already Analyzed" dialog with best entry info
-            if (typeof Swal !== 'undefined') {
-                const best = savedForecast.best_entry;
-                const period = savedForecast.forecast_period;
-                const bpd = savedForecast.best_purchase_day;
-                const bpdStr = dppeStored
-                    ? `Best Purchase Day Next Month: ${dppeStored}`
-                    : (savedForecast.best_purchase_day_str || '');
-                Swal.fire({
-                    icon: 'success',
-                    title: '✅ Forecast Retrieved from Library',
-                    html: `
-                        <div style="text-align:left; padding:10px;">
-                            <p>This <strong>exact dataset</strong> was already analyzed.</p>
-                            <p style="margin:8px 0;"><strong>${result.records.toLocaleString()}</strong> records ·
-                                <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
-                            <hr style="margin:12px 0; border-color:#e2e8f0">
-                            ${bpd ? `
-                            <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; margin:10px 0; text-align:center;">
-                                <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">🎯 ${bpdStr}</p>
-                                <p style="font-size:11px; color:#888; margin:6px 0 0;">SHA-256: ${bpd.hash_prefix}… | Algorithm: Deterministic</p>
-                            </div>
-                            ` : (best ? `
-                            <p>🎯 <strong>Best Entry:</strong> ${best.date_display || best.date}</p>
-                            ` : '')}
-                            ${best ? `
-                            <p>💰 <strong>Price:</strong> SAR ${(best.price_sar || 0).toFixed(2)} / kg</p>
-                            <p>✅ <strong>Confidence:</strong> ${(best.confidence || 0).toFixed(0)}%</p>
-                            ` : ''}
-                            <hr style="margin:12px 0; border-color:#e2e8f0">
-                            <p style="color:#047857; font-weight:600;">
-                                🔒 Same data = Same forecast (permanently saved)
+        // Show prediction result
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: '✅ Prediction Complete',
+                html: `
+                    <div style="text-align:left; padding:10px;">
+                        <p><strong>${result.records.toLocaleString()}</strong> records loaded</p>
+                        <p>Date range: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
+                        <hr style="margin:12px 0;">
+                        <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; text-align:center;">
+                            <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">
+                                🎯 Best Purchase Day Next Month: ${prediction}
                             </p>
-                            <p style="font-size:12px; color:#888; margin-top:4px;">
-                                📚 ${Forecasting.getLibrarySize()} forecast(s) in library
+                            <p style="font-size:11px; color:#888; margin:6px 0 0;">
+                                SHA-256: ${hash ? hash.substring(0, 16) : ''}… | DPPE Deterministic
                             </p>
                         </div>
-                    `,
-                    confirmButtonText: 'View Forecast',
-                    confirmButtonColor: '#047857',
-                });
-            }
-
+                        <hr style="margin:12px 0;">
+                        <p style="color:#047857; font-weight:600;">
+                            🔒 Same file = same prediction (permanently stored)
+                        </p>
+                    </div>
+                `,
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#047857',
+            });
         } else {
-            // ═══ NEW DATA — show Generate button ═══
-            console.log('[main] 📊 New data detected (fingerprint:', fp, ')');
-
-            // Re-enable the Generate button
-            const btn = document.getElementById('btn-generate');
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            btn.textContent = '🚀 Generate 30-Day Forecast';
-            btn.classList.add('pulse');
-            btn.onclick = function() { generateForecast(); };
-
-            if (typeof Swal !== 'undefined') {
-                const goNow = await Swal.fire({
-                    icon: 'success',
-                    title: 'Upload Successful!',
-                    html: `
-                        <div style="text-align:left; padding:10px;">
-                            <p><strong>${result.records.toLocaleString()}</strong> records loaded</p>
-                            <p>Date range: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
-                            <p>Features validated: <strong>${result.features}/39</strong></p>
-                            <hr style="margin:12px 0; border-color:#e2e8f0">
-                            <p style="color:#047857; font-weight:600;">
-                                Ready to generate 30-day predictions!
-                            </p>
-                            <p style="font-size:12px; color:#888; margin-top:4px;">
-                                📚 ${Forecasting.getLibrarySize()} forecast(s) already in library
-                            </p>
-                        </div>
-                    `,
-                    confirmButtonText: 'Generate Forecast Now',
-                    confirmButtonColor: '#047857',
-                    showCancelButton: true,
-                    cancelButtonText: 'Maybe Later',
-                });
-                if (goNow.isConfirmed) {
-                    await runLivePredictionFlow(result);
-                }
-            } else {
-                await runLivePredictionFlow(result);
-            }
+            showToast('Best Purchase Day Next Month: ' + prediction, 'success');
         }
+
     } catch (e) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
@@ -441,11 +361,6 @@ async function handleFileUpload(event) {
                             <li>Must include <code>time</code> and <code>Avg.Price (Rs./Kg)</code> columns</li>
                             <li>Check date format: DD/MM/YYYY or YYYY-MM-DD</li>
                         </ul>
-                        <p style="margin-top:10px">
-                            <a href="assets/data/test-upload-feb-mar-2026.csv" download style="color:#047857; font-weight:bold">
-                                Download sample CSV
-                            </a>
-                        </p>
                     </div>
                 `,
                 confirmButtonColor: '#047857',
@@ -456,138 +371,7 @@ async function handleFileUpload(event) {
     }
 }
 
-/**
- * Animated live-prediction pipeline after CSV upload
- */
-async function runLivePredictionFlow(uploadResult) {
-    const progressContainer = document.getElementById('progress-container');
-    const progressFill = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
-    const btn = document.getElementById('btn-generate');
-
-    // Show progress section and scroll into view
-    progressContainer.style.display = 'block';
-    btn.disabled = true;
-    btn.textContent = 'Running Live Prediction...';
-
-    const steps = [
-        { pct: 5,  msg: 'Validating 39 market features...',     delay: 400 },
-        { pct: 15, msg: 'Analyzing uploaded market data...',     delay: 500 },
-        { pct: 30, msg: 'Extracting trend indicators...',        delay: 500 },
-        { pct: 45, msg: 'Computing day-of-week seasonal patterns...', delay: 400 },
-        { pct: 55, msg: 'Calculating supply-demand dynamics...', delay: 400 },
-    ];
-
-    // Animate initial steps
-    for (const step of steps) {
-        progressFill.style.width = step.pct + '%';
-        progressText.textContent = step.msg;
-        await sleep(step.delay);
-    }
-
-    // Scroll to forecast section so user sees the progress
-    const forecastSection = document.getElementById('forecast');
-    if (forecastSection) forecastSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    try {
-        // Run actual prediction (LiveForecasting.predict is called via Forecasting.loadForecast)
-        const forecast = await Forecasting.loadForecast((pct, msg) => {
-            // Map the live engine's progress (55-100) into our UI
-            const mapped = Math.max(55, pct);
-            progressFill.style.width = mapped + '%';
-            progressText.textContent = msg;
-        });
-
-        appState.forecastGenerated = true;
-
-        // Complete animation
-        progressFill.style.width = '100%';
-        progressText.textContent = 'Live prediction complete!';
-
-        await sleep(500);
-        progressContainer.style.display = 'none';
-        btn.textContent = '🔒 Forecast Saved (Deterministic)';
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.style.cursor = 'default';
-        btn.classList.remove('pulse');
-        btn.onclick = function(e) {
-            e.preventDefault();
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Forecast Already Saved',
-                    html: '<p>This forecast is <strong>permanently saved</strong> in the library.</p>' +
-                          '<p style="margin-top:8px;">Same data always produces the exact same result.</p>' +
-                          '<p style="margin-top:10px;color:#047857;">Upload a different dataset for a new forecast.</p>',
-                    confirmButtonColor: '#047857',
-                    timer: 4000,
-                });
-            }
-            document.getElementById('forecast')?.scrollIntoView({ behavior: 'smooth' });
-        };
-
-        // Render all charts and tables
-        refreshDisplay();
-
-        // Success feedback
-        const isLive = (typeof Forecasting.isLive === 'function') ? Forecasting.isLive() : window.isCustomUpload;
-        console.log('[main] Forecast complete. isLive:', isLive);
-        if (typeof Swal !== 'undefined') {
-            const f = Forecasting.getForecast();
-            const period = f && f.forecast_period
-                ? `${f.forecast_period.start} to ${f.forecast_period.end}`
-                : '';
-            const best = f && f.best_entry;
-            const bpd = f && f.best_purchase_day;
-            const bpdStr = f && f.best_purchase_day_str || '';
-            Swal.fire({
-                icon: 'success',
-                title: '💾 Forecast Generated & Saved!',
-                html: `<div style="text-align:left; padding:10px;">
-                         <p>Analyzed <strong>${uploadResult.records.toLocaleString()}</strong> records
-                            (${uploadResult.from} to ${uploadResult.to})</p>
-                         ${bpd ? `
-                         <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; margin:12px 0; text-align:center;">
-                             <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">🎯 ${bpdStr}</p>
-                             <p style="font-size:11px; color:#888; margin:6px 0 0;">SHA-256: ${bpd.hash_prefix}… | Algorithm: Deterministic</p>
-                         </div>
-                         ` : (best ? `
-                         <hr style="margin:10px 0;">
-                         <p>🎯 <strong>Best Entry:</strong> ${best.date_display || best.date}</p>
-                         ` : '')}
-                         ${best ? `
-                         <p>💰 <strong>Price:</strong> SAR ${(best.price_sar || 0).toFixed(2)} / kg</p>
-                         <p>✅ <strong>Confidence:</strong> ${(best.confidence || 0).toFixed(0)}%</p>
-                         ` : ''}
-                         <hr style="margin:10px 0;">
-                         <p style="font-size:13px; color:#047857; font-weight:600;">
-                           🔒 Saved permanently — uploading same data again will load this forecast instantly
-                         </p>
-                         <p style="font-size:12px; color:#888; margin-top:4px;">
-                           📚 ${Forecasting.getLibrarySize()} forecast(s) in library
-                         </p>
-                       </div>`,
-                timer: 8000,
-                showConfirmButton: true,
-                confirmButtonColor: '#047857',
-            });
-        } else {
-            showToast('Forecast generated & saved (deterministic)', 'success');
-        }
-
-    } catch (err) {
-        progressContainer.style.display = 'none';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.textContent = '🚀 Generate 30-Day Forecast';
-        btn.classList.add('pulse');
-        btn.onclick = function() { generateForecast(); };
-        console.error('Live prediction error:', err);
-        showToast('Prediction failed: ' + err.message, 'error');
-    }
-}
+/* runLivePredictionFlow removed — DPPE handles all predictions */
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -621,41 +405,23 @@ async function generateForecast() {
     }
 
     try {
-        const forecast = await Forecasting.loadForecast(updateProgress);
+        await Forecasting.loadForecast(updateProgress);
         appState.forecastGenerated = true;
 
-        // Hide progress
         setTimeout(() => {
             progressContainer.style.display = 'none';
-            btn.textContent = '🔒 Forecast Saved (Deterministic)';
+            btn.textContent = '🔒 Prediction Saved';
             btn.disabled = true;
             btn.style.opacity = '0.7';
             btn.style.cursor = 'default';
             btn.classList.remove('pulse');
-            btn.onclick = function(e) {
-                e.preventDefault();
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Forecast Already Saved',
-                        html: '<p>This forecast is <strong>permanently saved</strong> in the library.</p>' +
-                              '<p style="margin-top:8px;">Same data always produces the exact same result.</p>' +
-                              '<p style="margin-top:10px;color:#047857;">Upload a different dataset for a new forecast.</p>',
-                        confirmButtonColor: '#047857',
-                        timer: 4000,
-                    });
-                }
-                document.getElementById('forecast')?.scrollIntoView({ behavior: 'smooth' });
-            };
         }, 500);
 
-        // Render everything
         refreshDisplay();
 
-        // Show SHA-256 best purchase day in toast if available
         const gf = Forecasting.getForecast();
-        const gfBpdStr = gf && gf.best_purchase_day_str;
-        showToast(gfBpdStr || 'Forecast generated & saved (deterministic)', 'success');
+        const bpdStr = gf && gf.best_purchase_day_str;
+        showToast(bpdStr || 'Forecast loaded (deterministic)', 'success');
     } catch (e) {
         progressContainer.style.display = 'none';
         btn.disabled = false;
