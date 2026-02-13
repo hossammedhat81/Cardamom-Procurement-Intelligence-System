@@ -488,10 +488,7 @@ async function runLivePredictionFlow(uploadResult) {
 
         await sleep(500);
         progressContainer.style.display = 'none';
-        const isLiveBtnText = (typeof Forecasting.isLive === 'function') ? Forecasting.isLive() : window.isCustomUpload;
-        btn.textContent = isLiveBtnText
-            ? '🔒 Forecast Saved (Deterministic)'
-            : '✅ Forecast Generated';
+        btn.textContent = '🔒 Forecast Saved (Deterministic)';
         btn.disabled = true;
         btn.style.opacity = '0.7';
         btn.style.cursor = 'default';
@@ -558,7 +555,7 @@ async function runLivePredictionFlow(uploadResult) {
                 confirmButtonColor: '#047857',
             });
         } else {
-            showToast(isLive ? 'Live 30-day prediction generated!' : 'Forecast generated!', 'success');
+            showToast('Forecast generated & saved (deterministic)', 'success');
         }
 
     } catch (err) {
@@ -612,10 +609,7 @@ async function generateForecast() {
         // Hide progress
         setTimeout(() => {
             progressContainer.style.display = 'none';
-            const live = (typeof Forecasting.isLive === 'function') ? Forecasting.isLive() : window.isCustomUpload;
-            btn.textContent = live
-                ? '🔒 Forecast Saved (Deterministic)'
-                : '✅ Forecast Generated';
+            btn.textContent = '🔒 Forecast Saved (Deterministic)';
             btn.disabled = true;
             btn.style.opacity = '0.7';
             btn.style.cursor = 'default';
@@ -640,8 +634,7 @@ async function generateForecast() {
         // Render everything
         refreshDisplay();
 
-        const isLive = (typeof Forecasting.isLive === 'function') ? Forecasting.isLive() : window.isCustomUpload;
-        showToast(isLive ? 'Live 30-day forecast generated (deterministic — same data = same result)' : '30-day forecast generated successfully!', 'success');
+        showToast('Forecast generated & saved (deterministic — same data = same result)', 'success');
     } catch (e) {
         progressContainer.style.display = 'none';
         btn.disabled = false;
