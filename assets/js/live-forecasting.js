@@ -24,19 +24,44 @@ const LiveForecasting = (() => {
         };
     }
 
-    // Create seed from data: hash of first price + last price + row count + last date
+    /**
+     * Seeded Random Number Generator (Deterministic)
+     * Same seed always produces same sequence.
+     */
+    class SeededRandom {
+        constructor(seed) {
+            this.rng = mulberry32(seed);
+        }
+        next() { return this.rng(); }
+        range(min, max) { return min + this.rng() * (max - min); }
+        gaussian(mean, stdDev) {
+            mean = mean || 0; stdDev = stdDev || 1;
+            const u1 = this.rng();
+            const u2 = this.rng();
+            const z0 = Math.sqrt(-2.0 * Math.log(u1 || 1e-10)) * Math.cos(2.0 * Math.PI * u2);
+            return z0 * stdDev + mean;
+        }
+    }
+
+    /**
+     * Generate deterministic seed from input data.
+     * Uses first 10 + last 10 rows for a unique fingerprint.
+     */
     function createSeedFromData(data) {
-        const firstPrice = parseFloat(data[0]['Avg.Price (Rs./Kg)']) || 0;
-        const lastPrice = parseFloat(data[data.length - 1]['Avg.Price (Rs./Kg)']) || 0;
-        const rowCount = data.length;
-        const lastDate = data[data.length - 1]._date
-            ? data[data.length - 1]._date.getTime()
-            : 0;
-        // Simple hash combining all values
-        let hash = Math.round(firstPrice * 100) ^ Math.round(lastPrice * 100);
-        hash = hash ^ (rowCount * 7919);
-        hash = hash ^ (Math.round(lastDate / 86400000) * 131);
-        return hash;
+        let hash = 0;
+        const sample = [
+            ...data.slice(0, Math.min(10, data.length)),
+            ...data.slice(-Math.min(10, data.length))
+        ];
+        sample.forEach(row => {
+            const str = String(row.time || '') + String(row['Avg.Price (Rs./Kg)'] || '');
+            for (let i = 0; i < str.length; i++) {
+                const c = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + c;
+                hash = hash & hash; // 32-bit int
+            }
+        });
+        return Math.abs(hash) || 12345;
     }
 
     // ── Helpers ──────────────────────────────────────────
@@ -149,8 +174,9 @@ const LiveForecasting = (() => {
 
         // ── Initialize deterministic PRNG from data ──────
         const seed = createSeedFromData(data);
-        const rng = mulberry32(seed);
-        console.log('[LiveForecasting] Deterministic seed:', seed);
+        const rng = new SeededRandom(seed);
+        console.log('[LiveForecasting] Deterministic seed:', seed,
+            '(same data will always produce same forecast)');
 
         // ── Determine last date ──────────────────────────
         let lastDate;
@@ -184,7 +210,7 @@ const LiveForecasting = (() => {
             const meanRevComp    = (ma30 - price) * 0.015;  // pull toward 30-day mean
             const seasonalComp   = dowEffect[dow] * price;  // day-of-week pattern
             const supplyComp     = supplyPressure * price;  // supply impact
-            const noiseComp      = (rng() - 0.5) * 2 * vol * price; // deterministic noise
+            const noiseComp      = rng.gaussian(0, vol) * price; // deterministic Gaussian noise
 
             // Combine
             const delta = trendComponent + momentumComp + meanRevComp + seasonalComp + supplyComp + noiseComp;
@@ -208,7 +234,7 @@ const LiveForecasting = (() => {
             // Dynamic confidence based on how far out + volatility
             const baseConf = 90 - i * 1.5; // decays with horizon
             const volPenalty = vol * 200;   // higher vol → lower confidence
-            const confidence = round(Math.max(40, Math.min(95, baseConf - volPenalty + (rng() - 0.5) * 5)), 1);
+            const confidence = round(Math.max(40, Math.min(95, baseConf - volPenalty + rng.range(-2.5, 2.5))), 1);
 
             // Risk assessment
             const risk = Math.abs(dailyPct) > 2.0 || vol > 0.025 ? 'High Risk' : 'Normal';

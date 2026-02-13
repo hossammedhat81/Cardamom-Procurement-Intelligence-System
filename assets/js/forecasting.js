@@ -10,22 +10,44 @@ const Forecasting = (() => {
     let currentCurrency = 'SAR';
     let isLivePrediction = false;
 
+    // ── Forecast cache — same data = same forecast, no re-computation ──
+    let _forecastCache = { dataHash: null, forecast: null };
+
+    function _hashData(data) {
+        if (!data || !data.length) return null;
+        const fp = String(data[0] && data[0].time || '') +
+                   String(data[0] && data[0]['Avg.Price (Rs./Kg)'] || '') +
+                   String(data[data.length - 1] && data[data.length - 1].time || '') +
+                   String(data[data.length - 1] && data[data.length - 1]['Avg.Price (Rs./Kg)'] || '') +
+                   data.length;
+        let h = 0;
+        for (let i = 0; i < fp.length; i++) {
+            h = ((h << 5) - h) + fp.charCodeAt(i);
+            h = h & h;
+        }
+        return h;
+    }
+
     /**
      * Load pre-computed forecast (Option A strategy)
      */
     async function loadForecast(progressCb) {
-        // Check if user explicitly uploaded custom data
-        const hasGlobalFlag = window.isCustomUpload === true;
-        const hasGlobalData = hasGlobalFlag && Array.isArray(window.uploadedData) && window.uploadedData.length >= 30;
-        const liveEngineExists = typeof LiveForecasting !== 'undefined';
+        // Sample data → always use pre-computed forecast
+        if (window.isSampleData === true) {
+            console.log('[Forecasting] --> Sample data detected, loading pre-computed forecast');
+        } else {
+            // Check if user explicitly uploaded custom data
+            const hasGlobalFlag = window.isCustomUpload === true;
+            const hasGlobalData = hasGlobalFlag && Array.isArray(window.uploadedData) && window.uploadedData.length >= 30;
+            const liveEngineExists = typeof LiveForecasting !== 'undefined';
 
-        console.log('[Forecasting] loadForecast routing check:',
-            { hasGlobalFlag, hasGlobalData, liveEngineExists });
+            console.log('[Forecasting] loadForecast routing check:',
+                { hasGlobalFlag, hasGlobalData, liveEngineExists });
 
-        // Only route to live prediction when user explicitly uploaded custom data
-        if (hasGlobalFlag && hasGlobalData && liveEngineExists) {
-            console.log('[Forecasting] --> Routing to LIVE prediction engine');
-            return runLiveForecast(progressCb);
+            if (hasGlobalFlag && hasGlobalData && liveEngineExists) {
+                console.log('[Forecasting] --> Routing to LIVE prediction engine');
+                return runLiveForecast(progressCb);
+            }
         }
 
         console.log('[Forecasting] --> Routing to pre-computed JSON forecast');
@@ -49,8 +71,10 @@ const Forecasting = (() => {
 
         if (progressCb) progressCb(90, 'Building analysis...');
 
-        // Compute analysis points
-        forecastData.analysis_points = generateAnalysisPoints();
+        // Preserve pre-computed insights from JSON if present; generate only if missing
+        if (!forecastData.analysis_points || forecastData.analysis_points.length === 0) {
+            forecastData.analysis_points = generateAnalysisPoints();
+        }
 
         isLivePrediction = false;
         if (progressCb) progressCb(100, 'Forecast complete!');
@@ -89,12 +113,25 @@ const Forecasting = (() => {
             throw new Error('Could not read price from data. Check that "Avg.Price (Rs./Kg)" column exists.');
         }
 
+        // ── Cache check: same data = same forecast, skip re-computation ──
+        const hash = _hashData(uploadedData);
+        if (_forecastCache.dataHash === hash && _forecastCache.forecast) {
+            console.log('[Forecasting] ✅ Using cached forecast (data unchanged, deterministic)');
+            forecastData = _forecastCache.forecast;
+            isLivePrediction = true;
+            if (progressCb) progressCb(100, 'Forecast loaded from cache!');
+            return forecastData;
+        }
+
         console.log('[Forecasting] Running live forecast on', uploadedData.length,
             'rows, last price: INR', lastPrice,
             'last date:', lastRow._date || lastRow.time);
 
         forecastData = LiveForecasting.predict(uploadedData, progressCb);
         isLivePrediction = true;
+
+        // Cache the result
+        _forecastCache = { dataHash: hash, forecast: forecastData };
 
         console.log('[Forecasting] Live forecast complete. Period:',
             forecastData.forecast_period?.start, 'to', forecastData.forecast_period?.end,
@@ -111,6 +148,15 @@ const Forecasting = (() => {
         const basePriceINR = 2412.5;
         const daily = [];
 
+        // Deterministic seeded PRNG for fallback simulation
+        let _simSeed = 48271;
+        function _simRng() {
+            _simSeed |= 0; _simSeed = _simSeed + 0x6D2B79F5 | 0;
+            let t = Math.imul(_simSeed ^ _simSeed >>> 15, 1 | _simSeed);
+            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+
         // Realistic price simulation with trends
         let price = basePriceINR;
         const trend = -0.001; // slight downward
@@ -120,8 +166,8 @@ const Forecasting = (() => {
             const date = new Date(baseDate);
             date.setDate(date.getDate() + i);
 
-            // Add realistic noise
-            const noise = (Math.random() - 0.5) * 2 * volatility;
+            // Add deterministic noise (seeded, not Math.random)
+            const noise = (_simRng() - 0.5) * 2 * volatility;
             const seasonal = Math.sin(i / 7 * Math.PI) * 0.005;
             price = price * (1 + trend + noise + seasonal);
 
@@ -137,16 +183,16 @@ const Forecasting = (() => {
             let recommendation, confidence;
             if (dailyPct < -1.5 && risk === 'Normal') {
                 recommendation = 'STRONG BUY';
-                confidence = 85 + Math.random() * 10;
+                confidence = 85 + _simRng() * 10;
             } else if (dailyPct < -0.5 && risk === 'Normal') {
                 recommendation = 'BUY';
-                confidence = 70 + Math.random() * 15;
+                confidence = 70 + _simRng() * 15;
             } else if (dailyPct < 0) {
                 recommendation = 'ACCUMULATE';
-                confidence = 55 + Math.random() * 15;
+                confidence = 55 + _simRng() * 15;
             } else {
                 recommendation = 'WAIT';
-                confidence = 40 + Math.random() * 20;
+                confidence = 40 + _simRng() * 20;
             }
 
             daily.push({

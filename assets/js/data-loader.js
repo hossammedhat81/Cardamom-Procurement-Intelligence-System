@@ -90,11 +90,11 @@ const DataLoader = (() => {
                     const fullFrom = allDates.length ? formatDate(allDates[0]) : '—';
                     const fullTo = allDates.length ? formatDate(allDates[allDates.length - 1]) : '—';
 
-                    // Store internally but DON'T set global upload flags
-                    // Sample data uses pre-computed forecasts.json, not live prediction
+                    // Store ALL data globally
                     rawData = data;
                     parsedData = data;
-                    window.uploadedData = null;
+                    window.uploadedData = data;        // ALL 2,869 rows
+                    window.isSampleData = true;         // Flag: use pre-computed forecasts.json
                     window.isCustomUpload = false;
 
                     const lastPrice = data.length
@@ -172,6 +172,7 @@ const DataLoader = (() => {
                     // Set global flags so forecasting engine can find the data
                     window.uploadedData = validatedData.data;
                     window.isCustomUpload = true;
+                    window.isSampleData = false;
 
                     const dates = validatedData.data.filter(r => r._date).map(r => r._date);
                     const lastDate = dates.length ? dates[dates.length - 1] : null;

@@ -6,52 +6,73 @@
     "xgboost": "XGBoost-v17"
   },
   "last_historical_date": "2026-01-09",
-  "forecast_period": "30 days",
+  "forecast_period": {
+    "start": "Jan 10, 2026",
+    "end": "Feb 08, 2026"
+  },
   "currency_rates": { "USD": 1, "SAR": 3.75, "INR": 83.50 },
   "best_entry": {
     "date": "2026-01-31",
     "date_display": "Jan 31, 2026",
     "price_usd": 27.32,
     "price_sar": 102.45,
-    "price_inr": 2281.22,
+    "price_inr": 2281.42,
     "recommendation": "STRONG BUY",
     "risk": "Normal",
-    "confidence": 84.6
+    "confidence": 85,
+    "daily_pct": -0.8,
+    "total_pct": -8.3
   },
   "statistics": {
+    "opening_price_sar": 111.75,
+    "closing_price_sar": 112.20,
+    "min_price_sar": 102.45,
+    "max_price_sar": 118.31,
+    "avg_price_sar": 110.71,
     "mean_price_usd": 29.62,
     "std_price_usd": 1.28,
     "min_price_usd": 27.32,
     "max_price_usd": 31.55,
+    "price_range_sar": 15.86,
+    "volatility": 14.3,
+    "trend_30day": 0.4,
     "buy_days": 12,
     "strong_buy_days": 5,
     "wait_days": 8,
     "accumulate_days": 5,
     "high_risk_days": 6,
+    "normal_risk_days": 24,
     "model_agreement_avg": 0.73,
     "avg_confidence": 72.4
   },
   "analysis_points": [
     {
-      "icon": "📉",
-      "text": "Prices expected to dip at end of January — optimal buying window on Jan 31"
-    },
-    {
-      "icon": "🧠",
-      "text": "All 3 models (TimesFM, LSTM-CNN-34, XGBoost-v17) agree on a late-January price correction"
-    },
-    {
-      "icon": "⚠️",
-      "text": "6 days flagged as High Risk — driven by supply uncertainty & seasonal weather patterns"
+      "icon": "�",
+      "text": "Prices expected to rise 0.4% over 30 days -- early procurement is advantageous."
     },
     {
       "icon": "💰",
-      "text": "Potential savings of 7.8% by timing purchases at the optimal entry point on Jan 31"
+      "text": "Optimal price is 8.3% below the opening forecast price, indicating a significant buying window."
     },
     {
-      "icon": "📊",
-      "text": "XGBoost buy-signal confidence at 84.6% for best entry date"
+      "icon": "🔬",
+      "text": "High AI confidence of 85% -- all three models (TimesFM, LSTM-CNN, XGBoost) show strong agreement."
+    },
+    {
+      "icon": "✅",
+      "text": "Stable market conditions predicted around optimal date, reducing procurement risk."
+    },
+    {
+      "icon": "🎯",
+      "text": "5 STRONG BUY signals detected in the 30-day forecast, giving flexibility in timing."
     }
+  ],
+  "insights": [
+    "Prices expected to rise 0.4% over 30 days -- early procurement is advantageous.",
+    "Optimal price is 8.3% below the opening forecast price, indicating a significant buying window.",
+    "High AI confidence of 85% -- all three models (TimesFM, LSTM-CNN, XGBoost) show strong agreement.",
+    "Stable market conditions predicted around optimal date, reducing procurement risk.",
+    "5 STRONG BUY signals detected in the 30-day forecast, giving flexibility in timing."
   ],
   "daily_forecasts": [
     {
@@ -375,12 +396,12 @@
       "day": 22,
       "price_usd": 27.32,
       "price_sar": 102.45,
-      "price_inr": 2281.22,
+      "price_inr": 2281.42,
       "daily_pct": -1.90,
       "total_pct": -8.32,
       "risk": "Normal",
       "recommendation": "STRONG BUY",
-      "confidence": 84.6,
+      "confidence": 85,
       "xgb_signal": 1,
       "model_agreement": 0.89
     },
