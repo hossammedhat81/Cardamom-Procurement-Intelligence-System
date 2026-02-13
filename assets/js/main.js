@@ -416,12 +416,10 @@ async function generateForecast() {
         showToast(bpdStr || 'Forecast loaded (deterministic)', 'success');
     } catch (e) {
         progressContainer.style.display = 'none';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.classList.add('pulse');
-        btn.textContent = '🚀 Generate 30-Day Forecast';
-        btn.onclick = function() { generateForecast(); };
+        btn.textContent = '❌ Forecast Failed';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'default';
         showToast('Forecast failed: ' + e.message, 'error');
     }
 }
