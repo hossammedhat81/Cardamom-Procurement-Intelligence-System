@@ -297,49 +297,89 @@ async function handleFileUpload(event) {
         status.innerHTML = `<span style="color:#047857">Parsed ${result.records.toLocaleString()} rows from ${file.name}</span>`;
         showDataSummary(result);
 
-        // Re-enable the Generate button for new uploads
-        const btn = document.getElementById('btn-generate');
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.textContent = '🚀 Generate 30-Day Forecast';
-        btn.classList.add('pulse');
-        btn.onclick = function() { generateForecast(); };
+        // Check the forecast library: does this exact data already have a saved forecast?
+        const fp = result.fingerprint;
+        const hasSaved = fp && Forecasting.hasSavedForecast(fp);
 
-        // Check if this exact data was already analyzed (cached forecast exists)
-        const cachedForecast = Forecasting.hasForecast() && Forecasting.getDataFingerprint() !== null;
-        const isSameDataCached = cachedForecast; // cache wasn't cleared = same data
+        if (hasSaved) {
+            // ═══ SAME DATA — load saved forecast instantly ═══
+            console.log('[main] 📚 Found saved forecast in library for', fp);
+            const savedEntry = Forecasting.getLibraryEntry(fp);
+            const savedForecast = Forecasting.loadSavedForecast(fp);
 
-        if (typeof Swal !== 'undefined') {
-            if (isSameDataCached) {
-                // Same data re-uploaded — offer to reuse cached forecast
-                const goNow = await Swal.fire({
-                    icon: 'info',
-                    title: 'Data Already Analyzed',
+            // Immediately render the saved forecast
+            appState.forecastGenerated = true;
+            refreshDisplay();
+
+            // Lock the Generate button
+            const btn = document.getElementById('btn-generate');
+            btn.textContent = '🔒 Forecast Saved (Deterministic)';
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'default';
+            btn.classList.remove('pulse');
+            btn.onclick = function(e) {
+                e.preventDefault();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Forecast Already Saved',
+                        html: '<p>This exact dataset was already analyzed.</p>' +
+                              '<p style="margin-top:8px;">Same data <strong>always</strong> produces the same forecast.</p>' +
+                              '<p style="margin-top:10px;color:#047857;">Upload a different dataset for a new forecast.</p>',
+                        confirmButtonColor: '#047857',
+                        timer: 4000,
+                    });
+                }
+                document.getElementById('forecast')?.scrollIntoView({ behavior: 'smooth' });
+            };
+
+            // Show "Data Already Analyzed" dialog with best entry info
+            if (typeof Swal !== 'undefined') {
+                const best = savedForecast.best_entry;
+                const period = savedForecast.forecast_period;
+                Swal.fire({
+                    icon: 'success',
+                    title: '✅ Forecast Retrieved from Library',
                     html: `
                         <div style="text-align:left; padding:10px;">
-                            <p>You've uploaded this <strong>exact dataset</strong> before.</p>
-                            <p><strong>${result.records.toLocaleString()}</strong> records ·
+                            <p>This <strong>exact dataset</strong> was already analyzed.</p>
+                            <p style="margin:8px 0;"><strong>${result.records.toLocaleString()}</strong> records ·
                                 <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
                             <hr style="margin:12px 0; border-color:#e2e8f0">
+                            ${best ? `
+                            <p>🎯 <strong>Best Entry:</strong> ${best.date_display || best.date}</p>
+                            <p>💰 <strong>Price:</strong> SAR ${(best.price_sar || 0).toFixed(2)} / kg</p>
+                            <p>✅ <strong>Confidence:</strong> ${(best.confidence || 0).toFixed(0)}%</p>
+                            ` : ''}
+                            <hr style="margin:12px 0; border-color:#e2e8f0">
                             <p style="color:#047857; font-weight:600;">
-                                ✅ Same data = Same forecast (deterministic system)
+                                🔒 Same data = Same forecast (permanently saved)
                             </p>
-                            <p style="font-size:13px; color:#666; margin-top:6px;">
-                                The previously computed forecast will be displayed.
+                            <p style="font-size:12px; color:#888; margin-top:4px;">
+                                📚 ${Forecasting.getLibrarySize()} forecast(s) in library
                             </p>
                         </div>
                     `,
                     confirmButtonText: 'View Forecast',
                     confirmButtonColor: '#047857',
-                    showCancelButton: true,
-                    cancelButtonText: 'Dismiss',
                 });
-                if (goNow.isConfirmed) {
-                    await runLivePredictionFlow(result);
-                }
-            } else {
-                // New data — normal flow
+            }
+
+        } else {
+            // ═══ NEW DATA — show Generate button ═══
+            console.log('[main] 📊 New data detected (fingerprint:', fp, ')');
+
+            // Re-enable the Generate button
+            const btn = document.getElementById('btn-generate');
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.textContent = '🚀 Generate 30-Day Forecast';
+            btn.classList.add('pulse');
+            btn.onclick = function() { generateForecast(); };
+
+            if (typeof Swal !== 'undefined') {
                 const goNow = await Swal.fire({
                     icon: 'success',
                     title: 'Upload Successful!',
@@ -350,7 +390,10 @@ async function handleFileUpload(event) {
                             <p>Features validated: <strong>${result.features}/39</strong></p>
                             <hr style="margin:12px 0; border-color:#e2e8f0">
                             <p style="color:#047857; font-weight:600;">
-                                Ready to generate 30-day predictions starting from the day after your last date!
+                                Ready to generate 30-day predictions!
+                            </p>
+                            <p style="font-size:12px; color:#888; margin-top:4px;">
+                                📚 ${Forecasting.getLibrarySize()} forecast(s) already in library
                             </p>
                         </div>
                     `,
@@ -362,10 +405,9 @@ async function handleFileUpload(event) {
                 if (goNow.isConfirmed) {
                     await runLivePredictionFlow(result);
                 }
+            } else {
+                await runLivePredictionFlow(result);
             }
-        } else {
-            // No SweetAlert2 — auto-trigger
-            await runLivePredictionFlow(result);
         }
     } catch (e) {
         if (typeof Swal !== 'undefined') {
@@ -448,7 +490,7 @@ async function runLivePredictionFlow(uploadResult) {
         progressContainer.style.display = 'none';
         const isLiveBtnText = (typeof Forecasting.isLive === 'function') ? Forecasting.isLive() : window.isCustomUpload;
         btn.textContent = isLiveBtnText
-            ? '✅ Live Forecast Generated (Deterministic)'
+            ? '🔒 Forecast Saved (Deterministic)'
             : '✅ Forecast Generated';
         btn.disabled = true;
         btn.style.opacity = '0.7';
@@ -459,9 +501,10 @@ async function runLivePredictionFlow(uploadResult) {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'info',
-                    title: 'Forecast Already Generated',
-                    html: '<p>This forecast is <strong>deterministic</strong> — same data always produces the exact same result.</p>' +
-                          '<p style="margin-top:10px;color:#047857;">To get a different forecast, upload a different dataset.</p>',
+                    title: 'Forecast Already Saved',
+                    html: '<p>This forecast is <strong>permanently saved</strong> in the library.</p>' +
+                          '<p style="margin-top:8px;">Same data always produces the exact same result.</p>' +
+                          '<p style="margin-top:10px;color:#047857;">Upload a different dataset for a new forecast.</p>',
                     confirmButtonColor: '#047857',
                     timer: 4000,
                 });
@@ -480,19 +523,28 @@ async function runLivePredictionFlow(uploadResult) {
             const period = f && f.forecast_period
                 ? `${f.forecast_period.start} to ${f.forecast_period.end}`
                 : '';
+            const best = f && f.best_entry;
             Swal.fire({
                 icon: 'success',
-                title: isLive ? 'Live Prediction Ready!' : 'Forecast Ready!',
+                title: isLive ? '💾 Forecast Generated & Saved!' : 'Forecast Ready!',
                 html: isLive
-                    ? `<p>Analyzed <strong>${uploadResult.records.toLocaleString()}</strong> records 
-                          (${uploadResult.from} to ${uploadResult.to})</p>
-                       <p style="font-size:13px; color:#047857; margin-top:8px; font-weight:600;">
-                         Predictions: ${period}
-                       </p>
-                       <p style="font-size:13px; color:#666; margin-top:4px;">
-                         Generated using in-browser statistical engine:<br>
-                         EMA Trend + Linear Regression + Seasonal Patterns + Mean Reversion
-                       </p>`
+                    ? `<div style="text-align:left; padding:10px;">
+                         <p>Analyzed <strong>${uploadResult.records.toLocaleString()}</strong> records
+                            (${uploadResult.from} to ${uploadResult.to})</p>
+                         ${best ? `
+                         <hr style="margin:10px 0;">
+                         <p>🎯 <strong>Best Entry:</strong> ${best.date_display || best.date}</p>
+                         <p>💰 <strong>Price:</strong> SAR ${(best.price_sar || 0).toFixed(2)} / kg</p>
+                         <p>✅ <strong>Confidence:</strong> ${(best.confidence || 0).toFixed(0)}%</p>
+                         ` : ''}
+                         <hr style="margin:10px 0;">
+                         <p style="font-size:13px; color:#047857; font-weight:600;">
+                           🔒 Saved permanently — uploading same data again will load this forecast instantly
+                         </p>
+                         <p style="font-size:12px; color:#888; margin-top:4px;">
+                           📚 ${Forecasting.getLibrarySize()} forecast(s) in library
+                         </p>
+                       </div>`
                     : `<div style="text-align:left; padding:10px;">
                          <p>🎯 <strong>Optimal Entry:</strong> Jan 31, 2026</p>
                          <p>💰 <strong>Price:</strong> SAR 102.45 / kg</p>
@@ -501,7 +553,7 @@ async function runLivePredictionFlow(uploadResult) {
                          <hr style="margin:12px 0;">
                          <p style="color:#047857; font-weight:600;">Potential savings: SAR 4,650 on 500kg order</p>
                        </div>`,
-                timer: 6000,
+                timer: 8000,
                 showConfirmButton: true,
                 confirmButtonColor: '#047857',
             });
@@ -562,7 +614,7 @@ async function generateForecast() {
             progressContainer.style.display = 'none';
             const live = (typeof Forecasting.isLive === 'function') ? Forecasting.isLive() : window.isCustomUpload;
             btn.textContent = live
-                ? '✅ Live Forecast Generated (Deterministic)'
+                ? '🔒 Forecast Saved (Deterministic)'
                 : '✅ Forecast Generated';
             btn.disabled = true;
             btn.style.opacity = '0.7';
@@ -573,9 +625,10 @@ async function generateForecast() {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'info',
-                        title: 'Forecast Already Generated',
-                        html: '<p>This forecast is <strong>deterministic</strong> — same data always produces the exact same result.</p>' +
-                              '<p style="margin-top:10px;color:#047857;">To get a different forecast, upload a different dataset.</p>',
+                        title: 'Forecast Already Saved',
+                        html: '<p>This forecast is <strong>permanently saved</strong> in the library.</p>' +
+                              '<p style="margin-top:8px;">Same data always produces the exact same result.</p>' +
+                              '<p style="margin-top:10px;color:#047857;">Upload a different dataset for a new forecast.</p>',
                         confirmButtonColor: '#047857',
                         timer: 4000,
                     });

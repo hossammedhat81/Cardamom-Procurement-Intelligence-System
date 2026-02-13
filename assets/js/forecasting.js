@@ -10,23 +10,49 @@ const Forecasting = (() => {
     let currentCurrency = 'SAR';
     let isLivePrediction = false;
 
-    // ── Forecast cache — same data = same forecast, no re-computation ──
-    // Persisted in localStorage so even page refresh returns same result.
-    let _forecastCache = { dataHash: null, forecast: null };
+    // ── Forecast Library — permanent storage keyed by data fingerprint ──
+    // Each unique dataset gets ONE forecast, saved permanently in localStorage.
+    // Structure: { "fp_<hash>": { saved_at, input_summary, forecast }, ... }
+    let _forecastLibrary = {};
 
-    // Try restoring from localStorage on init
+    // Restore library from localStorage on init
     try {
-        const stored = localStorage.getItem('_forecastCache');
-        if (stored) _forecastCache = JSON.parse(stored);
-    } catch (_) { /* ignore */ }
+        const stored = localStorage.getItem('cardamom_forecast_library');
+        if (stored) _forecastLibrary = JSON.parse(stored);
+        // Migrate: remove old single-slot cache if present
+        localStorage.removeItem('_forecastCache');
+        console.log('[Forecasting] Forecast library loaded:', Object.keys(_forecastLibrary).length, 'saved forecasts');
+    } catch (_) { /* ignore corrupt data */ }
 
-    function _persistCache() {
-        try { localStorage.setItem('_forecastCache', JSON.stringify(_forecastCache)); } catch (_) { /* quota */ }
+    function _persistLibrary() {
+        try {
+            localStorage.setItem('cardamom_forecast_library', JSON.stringify(_forecastLibrary));
+        } catch (_) {
+            // localStorage quota exceeded — prune oldest entries
+            const keys = Object.keys(_forecastLibrary);
+            if (keys.length > 10) {
+                // Keep only 10 most recent
+                const sorted = keys.sort((a, b) =>
+                    (_forecastLibrary[b].saved_at || '').localeCompare(_forecastLibrary[a].saved_at || ''));
+                const keep = sorted.slice(0, 10);
+                const pruned = {};
+                keep.forEach(k => { pruned[k] = _forecastLibrary[k]; });
+                _forecastLibrary = pruned;
+                try { localStorage.setItem('cardamom_forecast_library', JSON.stringify(_forecastLibrary)); } catch (_) {}
+            }
+        }
     }
 
-    function _hashData(data) {
+    // Active fingerprint for the currently loaded data
+    let _activeFingerprint = null;
+
+    /**
+     * Compute a deterministic fingerprint string from row data.
+     * Uses first 5 + last 5 + middle row + row count + date range.
+     * Returns a string like "fp_12345678".
+     */
+    function _computeFingerprint(data) {
         if (!data || !data.length) return null;
-        // Robust hash: first 5 + last 5 + middle row + length
         const indices = [];
         for (let i = 0; i < Math.min(5, data.length); i++) indices.push(i);
         const mid = Math.floor(data.length / 2);
@@ -47,7 +73,38 @@ const Forecasting = (() => {
             h = ((h << 5) - h) + fp.charCodeAt(i);
             h = h & h;
         }
-        return h;
+        return 'fp_' + Math.abs(h).toString(36);
+    }
+
+    /**
+     * Look up a saved forecast in the library by fingerprint.
+     * Returns the forecast object or null.
+     */
+    function lookupForecast(fingerprint) {
+        if (!fingerprint) return null;
+        const entry = _forecastLibrary[fingerprint];
+        return entry ? entry.forecast : null;
+    }
+
+    /**
+     * Save a forecast to the library under the given fingerprint.
+     */
+    function _saveForecast(fingerprint, inputData, forecast) {
+        const firstRow = inputData[0] || {};
+        const lastRow = inputData[inputData.length - 1] || {};
+        _forecastLibrary[fingerprint] = {
+            saved_at: new Date().toISOString(),
+            input_summary: {
+                rows: inputData.length,
+                first_date: String(firstRow.time || ''),
+                last_date: String(lastRow.time || ''),
+                last_price: parseFloat(lastRow['Avg.Price (Rs./Kg)']) || 0,
+            },
+            forecast: forecast,
+        };
+        _persistLibrary();
+        console.log('[Forecasting] 💾 Forecast saved to library. Fingerprint:', fingerprint,
+            '| Total saved:', Object.keys(_forecastLibrary).length);
     }
 
     /**
@@ -135,26 +192,29 @@ const Forecasting = (() => {
             throw new Error('Could not read price from data. Check that "Avg.Price (Rs./Kg)" column exists.');
         }
 
-        // ── Cache check: same data = same forecast, skip re-computation ──
-        const hash = _hashData(uploadedData);
-        if (_forecastCache.dataHash === hash && _forecastCache.forecast) {
-            console.log('[Forecasting] ✅ Using cached forecast (data unchanged, deterministic)');
-            forecastData = _forecastCache.forecast;
+        // ── Library lookup: check if this exact data has a saved forecast ──
+        const fingerprint = _computeFingerprint(uploadedData);
+        _activeFingerprint = fingerprint;
+        const savedForecast = lookupForecast(fingerprint);
+
+        if (savedForecast) {
+            console.log('[Forecasting] ✅ Found saved forecast in library for', fingerprint);
+            forecastData = savedForecast;
             isLivePrediction = true;
-            if (progressCb) progressCb(100, 'Forecast loaded from cache!');
+            if (progressCb) progressCb(100, 'Forecast loaded from library!');
             return forecastData;
         }
 
-        console.log('[Forecasting] Running live forecast on', uploadedData.length,
-            'rows, last price: INR', lastPrice,
+        console.log('[Forecasting] 🚀 No saved forecast for', fingerprint,
+            '— generating new. Rows:', uploadedData.length,
+            'last price: INR', lastPrice,
             'last date:', lastRow._date || lastRow.time);
 
         forecastData = LiveForecasting.predict(uploadedData, progressCb);
         isLivePrediction = true;
 
-        // Cache the result (memory + localStorage)
-        _forecastCache = { dataHash: hash, forecast: forecastData };
-        _persistCache();
+        // Save to library permanently
+        _saveForecast(fingerprint, uploadedData, forecastData);
 
         console.log('[Forecasting] Live forecast complete. Period:',
             forecastData.forecast_period?.start, 'to', forecastData.forecast_period?.end,
@@ -506,15 +566,45 @@ const Forecasting = (() => {
         return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
     }
 
-    /** Clear cached forecast (use when user uploads NEW data) */
+    /** Clear the active in-memory forecast (does NOT delete from library) */
     function clearCache() {
-        _forecastCache = { dataHash: null, forecast: null };
-        try { localStorage.removeItem('_forecastCache'); } catch (_) {}
+        _activeFingerprint = null;
+        forecastData = null;
     }
 
-    /** Return data fingerprint hash (so UI can show it) */
+    /** Compute fingerprint for given data (public, for UI to check library) */
+    function computeFingerprint(data) {
+        return _computeFingerprint(data);
+    }
+
+    /** Check if a saved forecast exists for a fingerprint */
+    function hasSavedForecast(fingerprint) {
+        return !!lookupForecast(fingerprint);
+    }
+
+    /** Load a saved forecast from library into active state and display it */
+    function loadSavedForecast(fingerprint) {
+        const saved = lookupForecast(fingerprint);
+        if (!saved) return null;
+        forecastData = saved;
+        isLivePrediction = true;
+        _activeFingerprint = fingerprint;
+        return forecastData;
+    }
+
+    /** Return the active data fingerprint */
     function getDataFingerprint() {
-        return _forecastCache.dataHash;
+        return _activeFingerprint;
+    }
+
+    /** Get the number of saved forecasts in the library */
+    function getLibrarySize() {
+        return Object.keys(_forecastLibrary).length;
+    }
+
+    /** Get summary info for a fingerprint from the library */
+    function getLibraryEntry(fingerprint) {
+        return _forecastLibrary[fingerprint] || null;
     }
 
     return {
@@ -529,7 +619,12 @@ const Forecasting = (() => {
         hasForecast,
         isLive: () => isLivePrediction,
         clearCache,
+        computeFingerprint,
+        hasSavedForecast,
+        loadSavedForecast,
         getDataFingerprint,
+        getLibrarySize,
+        getLibraryEntry,
         EXCHANGE_RATES,
         CURRENCY_SYMBOLS,
     };
