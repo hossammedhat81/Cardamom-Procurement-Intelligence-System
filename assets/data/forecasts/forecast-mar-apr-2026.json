@@ -1,0 +1,109 @@
+{
+  "scenario_id": "test-mar-apr-2026",
+  "input_date_range": { "start": "2026-03-09", "end": "2026-04-07" },
+  "forecast_period": { "start": "Apr 08, 2026", "end": "May 07, 2026" },
+  "generated": "2026-04-07T12:00:00Z",
+  "last_historical_date": "2026-04-07",
+  "source": "pre-computed-fixed",
+  "model_versions": {
+    "timesfm": "TimesFM-v1.0",
+    "lstm_cnn": "LSTM-CNN-34-layer",
+    "xgboost": "XGBoost-v17"
+  },
+  "currency_rates": { "USD": 1, "SAR": 3.75, "INR": 83.50 },
+
+  "best_entry": {
+    "date": "2026-04-12",
+    "date_display": "Apr 12, 2026",
+    "price_sar": 105.50,
+    "price_usd": 28.13,
+    "price_inr": 2349.17,
+    "recommendation": "BUY",
+    "confidence": 76,
+    "risk": "Normal",
+    "daily_pct": -1.12,
+    "total_pct": -0.85,
+    "savings_sar_500kg": 310.00
+  },
+
+  "best_purchase_day": {
+    "date_str": "12-04-2026",
+    "date_iso": "2026-04-12",
+    "date_display": "Apr 12, 2026",
+    "month_name": "April",
+    "year": 2026,
+    "day": 12,
+    "algorithm": "Pre-computed fixed forecast"
+  },
+  "best_purchase_day_str": "Best Entry: Apr 12, 2026 at SAR 105.50",
+
+  "statistics": {
+    "opening_price_sar": 106.40,
+    "closing_price_sar": 112.80,
+    "min_price_sar": 105.50,
+    "max_price_sar": 113.20,
+    "avg_price_sar": 109.35,
+    "min_price_usd": 28.13,
+    "max_price_usd": 30.19,
+    "mean_price_usd": 29.16,
+    "price_range_sar": 7.70,
+    "trend_30day": 6.01,
+    "volatility": 1.9,
+    "buy_days": 4,
+    "strong_buy_days": 1,
+    "accumulate_days": 3,
+    "wait_days": 22,
+    "high_risk_days": 1,
+    "normal_risk_days": 29,
+    "avg_confidence": 67.2
+  },
+
+  "analysis_points": [
+    { "icon": "📈", "text": "Prices expected to rise 6.0% over 30 days — early procurement around Apr 12 is advantageous." },
+    { "icon": "💰", "text": "Optimal price is 0.8% below the opening forecast price, with a clear buying window on Apr 12." },
+    { "icon": "🔬", "text": "Moderate AI confidence of 76% — two of three models agree on this entry point." },
+    { "icon": "✅", "text": "Mostly stable market conditions with only 1 high-risk day in the 30-day period." },
+    { "icon": "🎯", "text": "1 STRONG BUY and 4 BUY signals detected, with the strongest opportunity on Apr 12 at SAR 105.50." }
+  ],
+
+  "insights": [
+    "Prices expected to rise 6.0% over 30 days — early procurement around Apr 12 is advantageous.",
+    "Optimal price is 0.8% below the opening forecast price, with a clear buying window on Apr 12.",
+    "Moderate AI confidence of 76% — two of three models agree on this entry point.",
+    "Mostly stable market conditions with only 1 high-risk day in the 30-day period.",
+    "1 STRONG BUY and 4 BUY signals detected, with the strongest opportunity on Apr 12 at SAR 105.50."
+  ],
+
+  "daily_forecasts": [
+    { "date": "2026-04-08", "date_display": "Apr 08, 2026", "day": 1, "price_sar": 106.40, "price_usd": 28.37, "price_inr": 2369.18, "daily_pct": 0.00, "total_pct": 0.00, "risk": "Normal", "recommendation": "WAIT", "confidence": 85 },
+    { "date": "2026-04-09", "date_display": "Apr 09, 2026", "day": 2, "price_sar": 106.20, "price_usd": 28.32, "price_inr": 2364.72, "daily_pct": -0.19, "total_pct": -0.19, "risk": "Normal", "recommendation": "ACCUMULATE", "confidence": 84 },
+    { "date": "2026-04-10", "date_display": "Apr 10, 2026", "day": 3, "price_sar": 106.55, "price_usd": 28.41, "price_inr": 2372.52, "daily_pct": 0.33, "total_pct": 0.14, "risk": "Normal", "recommendation": "WAIT", "confidence": 83 },
+    { "date": "2026-04-11", "date_display": "Apr 11, 2026", "day": 4, "price_sar": 106.70, "price_usd": 28.45, "price_inr": 2375.86, "daily_pct": 0.14, "total_pct": 0.28, "risk": "Normal", "recommendation": "WAIT", "confidence": 81 },
+    { "date": "2026-04-12", "date_display": "Apr 12, 2026", "day": 5, "price_sar": 105.50, "price_usd": 28.13, "price_inr": 2349.17, "daily_pct": -1.12, "total_pct": -0.85, "risk": "Normal", "recommendation": "BUY", "confidence": 76 },
+    { "date": "2026-04-13", "date_display": "Apr 13, 2026", "day": 6, "price_sar": 105.85, "price_usd": 28.23, "price_inr": 2356.96, "daily_pct": 0.33, "total_pct": -0.52, "risk": "Normal", "recommendation": "WAIT", "confidence": 75 },
+    { "date": "2026-04-14", "date_display": "Apr 14, 2026", "day": 7, "price_sar": 106.30, "price_usd": 28.35, "price_inr": 2366.95, "daily_pct": 0.43, "total_pct": -0.09, "risk": "Normal", "recommendation": "WAIT", "confidence": 74 },
+    { "date": "2026-04-15", "date_display": "Apr 15, 2026", "day": 8, "price_sar": 106.80, "price_usd": 28.48, "price_inr": 2378.08, "daily_pct": 0.47, "total_pct": 0.38, "risk": "Normal", "recommendation": "WAIT", "confidence": 73 },
+    { "date": "2026-04-16", "date_display": "Apr 16, 2026", "day": 9, "price_sar": 107.25, "price_usd": 28.60, "price_inr": 2388.10, "daily_pct": 0.42, "total_pct": 0.80, "risk": "Normal", "recommendation": "WAIT", "confidence": 72 },
+    { "date": "2026-04-17", "date_display": "Apr 17, 2026", "day": 10, "price_sar": 107.60, "price_usd": 28.69, "price_inr": 2395.89, "daily_pct": 0.33, "total_pct": 1.13, "risk": "Normal", "recommendation": "WAIT", "confidence": 71 },
+    { "date": "2026-04-18", "date_display": "Apr 18, 2026", "day": 11, "price_sar": 108.10, "price_usd": 28.83, "price_inr": 2407.03, "daily_pct": 0.46, "total_pct": 1.60, "risk": "Normal", "recommendation": "WAIT", "confidence": 70 },
+    { "date": "2026-04-19", "date_display": "Apr 19, 2026", "day": 12, "price_sar": 107.45, "price_usd": 28.65, "price_inr": 2392.55, "daily_pct": -0.60, "total_pct": 0.99, "risk": "Normal", "recommendation": "BUY", "confidence": 69 },
+    { "date": "2026-04-20", "date_display": "Apr 20, 2026", "day": 13, "price_sar": 107.90, "price_usd": 28.77, "price_inr": 2402.57, "daily_pct": 0.42, "total_pct": 1.41, "risk": "Normal", "recommendation": "WAIT", "confidence": 68 },
+    { "date": "2026-04-21", "date_display": "Apr 21, 2026", "day": 14, "price_sar": 108.55, "price_usd": 28.95, "price_inr": 2417.06, "daily_pct": 0.60, "total_pct": 2.02, "risk": "Normal", "recommendation": "WAIT", "confidence": 67 },
+    { "date": "2026-04-22", "date_display": "Apr 22, 2026", "day": 15, "price_sar": 109.10, "price_usd": 29.09, "price_inr": 2429.31, "daily_pct": 0.51, "total_pct": 2.54, "risk": "Normal", "recommendation": "WAIT", "confidence": 66 },
+    { "date": "2026-04-23", "date_display": "Apr 23, 2026", "day": 16, "price_sar": 109.65, "price_usd": 29.24, "price_inr": 2441.56, "daily_pct": 0.50, "total_pct": 3.06, "risk": "Normal", "recommendation": "WAIT", "confidence": 65 },
+    { "date": "2026-04-24", "date_display": "Apr 24, 2026", "day": 17, "price_sar": 110.20, "price_usd": 29.39, "price_inr": 2453.80, "daily_pct": 0.50, "total_pct": 3.57, "risk": "Normal", "recommendation": "WAIT", "confidence": 64 },
+    { "date": "2026-04-25", "date_display": "Apr 25, 2026", "day": 18, "price_sar": 110.85, "price_usd": 29.56, "price_inr": 2468.28, "daily_pct": 0.59, "total_pct": 4.18, "risk": "Normal", "recommendation": "WAIT", "confidence": 63 },
+    { "date": "2026-04-26", "date_display": "Apr 26, 2026", "day": 19, "price_sar": 113.20, "price_usd": 30.19, "price_inr": 2520.62, "daily_pct": 2.12, "total_pct": 6.39, "risk": "High Risk", "recommendation": "WAIT", "confidence": 62 },
+    { "date": "2026-04-27", "date_display": "Apr 27, 2026", "day": 20, "price_sar": 111.30, "price_usd": 29.68, "price_inr": 2478.30, "daily_pct": -1.68, "total_pct": 4.61, "risk": "Normal", "recommendation": "STRONG BUY", "confidence": 80 },
+    { "date": "2026-04-28", "date_display": "Apr 28, 2026", "day": 21, "price_sar": 111.60, "price_usd": 29.76, "price_inr": 2484.98, "daily_pct": 0.27, "total_pct": 4.89, "risk": "Normal", "recommendation": "WAIT", "confidence": 59 },
+    { "date": "2026-04-29", "date_display": "Apr 29, 2026", "day": 22, "price_sar": 111.15, "price_usd": 29.64, "price_inr": 2474.96, "daily_pct": -0.40, "total_pct": 4.46, "risk": "Normal", "recommendation": "ACCUMULATE", "confidence": 57 },
+    { "date": "2026-04-30", "date_display": "Apr 30, 2026", "day": 23, "price_sar": 111.40, "price_usd": 29.71, "price_inr": 2480.53, "daily_pct": 0.22, "total_pct": 4.70, "risk": "Normal", "recommendation": "WAIT", "confidence": 56 },
+    { "date": "2026-05-01", "date_display": "May 01, 2026", "day": 24, "price_sar": 111.70, "price_usd": 29.79, "price_inr": 2487.21, "daily_pct": 0.27, "total_pct": 4.98, "risk": "Normal", "recommendation": "WAIT", "confidence": 55 },
+    { "date": "2026-05-02", "date_display": "May 02, 2026", "day": 25, "price_sar": 112.00, "price_usd": 29.87, "price_inr": 2493.89, "daily_pct": 0.27, "total_pct": 5.26, "risk": "Normal", "recommendation": "WAIT", "confidence": 54 },
+    { "date": "2026-05-03", "date_display": "May 03, 2026", "day": 26, "price_sar": 112.20, "price_usd": 29.92, "price_inr": 2498.34, "daily_pct": 0.18, "total_pct": 5.45, "risk": "Normal", "recommendation": "WAIT", "confidence": 52 },
+    { "date": "2026-05-04", "date_display": "May 04, 2026", "day": 27, "price_sar": 111.85, "price_usd": 29.83, "price_inr": 2490.55, "daily_pct": -0.31, "total_pct": 5.12, "risk": "Normal", "recommendation": "ACCUMULATE", "confidence": 50 },
+    { "date": "2026-05-05", "date_display": "May 05, 2026", "day": 28, "price_sar": 112.30, "price_usd": 29.95, "price_inr": 2500.57, "daily_pct": 0.40, "total_pct": 5.54, "risk": "Normal", "recommendation": "WAIT", "confidence": 48 },
+    { "date": "2026-05-06", "date_display": "May 06, 2026", "day": 29, "price_sar": 112.55, "price_usd": 30.01, "price_inr": 2506.14, "daily_pct": 0.22, "total_pct": 5.78, "risk": "Normal", "recommendation": "BUY", "confidence": 46 },
+    { "date": "2026-05-07", "date_display": "May 07, 2026", "day": 30, "price_sar": 112.80, "price_usd": 30.08, "price_inr": 2511.71, "daily_pct": 0.22, "total_pct": 6.01, "risk": "Normal", "recommendation": "WAIT", "confidence": 44 }
+  ]
+}

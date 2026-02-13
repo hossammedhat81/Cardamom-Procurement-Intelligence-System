@@ -1,5 +1,10 @@
 /* ═══════════════════════════════════════════════════════════
    Main Application — Core logic, event handlers, UI updates
+   ═══════════════════════════════════════════════════════════
+   DATE-RANGE LOCKED SYSTEM:
+   • Upload CSV → detect date range → load fixed forecast JSON
+   • NO DPPE, NO SHA-256, NO randomness, NO live prediction
+   • If date range not recognized → show error
    ═══════════════════════════════════════════════════════════ */
 
 // ── State ─────────────────────────────────────────────────
@@ -107,7 +112,6 @@ function initNavigation() {
             backToTop.classList.remove('visible');
         }
 
-        // Active nav link
         updateActiveNavLink();
     });
 }
@@ -194,7 +198,7 @@ function initKeyboardNav() {
 }
 
 // ══════════════════════════════════════════════════════════
-// DATA LOADING
+// DATA LOADING — SAMPLE DATA
 // ══════════════════════════════════════════════════════════
 
 async function loadSampleData() {
@@ -221,9 +225,7 @@ async function loadSampleData() {
         document.getElementById('sample-status').innerHTML = `✅ <strong>${result.records.toLocaleString()} days</strong> loaded (full historical dataset)`;
         showDataSummary(result);
 
-        // ── DPPE: prediction already computed inside DataLoader ──
-        const hash = result.rawFileHash;
-        const prediction = result.storedPrediction;
+        const scenario = DataLoader.getActiveScenario();
 
         if (typeof Swal !== 'undefined') {
             const goNow = await Swal.fire({
@@ -236,15 +238,18 @@ async function loadSampleData() {
                         <hr style="margin:12px 0;">
                         <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; text-align:center;">
                             <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">
-                                🎯 Best Purchase Day Next Month: ${prediction}
+                                🎯 Best Entry: ${scenario.bestEntry.date}
                             </p>
-                            <p style="font-size:11px; color:#888; margin:6px 0 0;">
-                                SHA-256: ${hash ? hash.substring(0, 16) : ''}… | DPPE Deterministic
+                            <p style="font-size:16px; font-weight:600; color:#047857; margin:6px 0 0;">
+                                💰 SAR ${scenario.bestEntry.price.toFixed(2)} / kg
+                            </p>
+                            <p style="font-size:13px; color:#555; margin:6px 0 0;">
+                                Confidence: ${scenario.bestEntry.confidence}% | Pre-Computed AI Forecast
                             </p>
                         </div>
                         <hr style="margin:12px 0;">
                         <p style="color:#047857; font-weight:600;">
-                            🔒 Same file = same prediction (permanently stored)
+                            🔒 This result is fixed and will never change.
                         </p>
                     </div>
                 `,
@@ -257,7 +262,7 @@ async function loadSampleData() {
                 await generateForecast();
             }
         } else {
-            showToast('Best Purchase Day Next Month: ' + prediction, 'success');
+            showToast('Best Entry: ' + scenario.bestEntry.date + ' at SAR ' + scenario.bestEntry.price.toFixed(2), 'success');
         }
 
         btn.textContent = '✅ Loaded';
@@ -270,6 +275,10 @@ async function loadSampleData() {
     }
 }
 
+// ══════════════════════════════════════════════════════════
+// DATA LOADING — FILE UPLOAD (DATE-RANGE LOCKED)
+// ══════════════════════════════════════════════════════════
+
 async function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -280,7 +289,7 @@ async function handleFileUpload(event) {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             title: 'Processing Your Data...',
-            html: '<p>Reading and hashing CSV file...</p>',
+            html: '<p>Reading and validating CSV file...</p>',
             allowOutsideClick: false,
             allowEscapeKey: false,
             showConfirmButton: false,
@@ -289,6 +298,7 @@ async function handleFileUpload(event) {
     }
 
     try {
+        // Step 1: Parse CSV
         const result = await DataLoader.parseCSV(file);
         appState.dataLoaded = true;
         if (typeof Swal !== 'undefined') Swal.close();
@@ -296,97 +306,99 @@ async function handleFileUpload(event) {
         status.innerHTML = `<span style="color:#047857">Parsed ${result.records.toLocaleString()} rows from ${file.name}</span>`;
         showDataSummary(result);
 
-        // ══════════════════════════════════════════════════
-        // CHECK FOR FIXED TEST SCENARIO
-        // ══════════════════════════════════════════════════
-        const scenario = DataLoader.detectFixedScenario(file.name, DataLoader.getData());
+        // Step 2: Detect date range from parsed data
+        const rangeKey = DataLoader.detectDateRange(DataLoader.getData());
 
-        if (scenario) {
-            // ── Known test scenario — load pre-computed forecast ──
-            console.log('✅ Known test scenario detected:', scenario.forecastFile);
-
-            status.innerHTML = `<span style="color:#047857">✅ Known scenario: <strong>${file.name}</strong> — Loading pre-computed forecast...</span>`;
-
+        if (!rangeKey) {
+            // Could not extract dates from the data
             if (typeof Swal !== 'undefined') {
-                await Swal.fire({
-                    icon: 'success',
-                    title: '✅ Pre-Computed Forecast Loaded',
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Date Range Not Detected',
                     html: `
-                        <div style="text-align:left; padding:10px;">
-                            <p>✅ <strong>${result.records.toLocaleString()}</strong> records loaded from <strong>${file.name}</strong></p>
-                            <p>📅 Period: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
-                            <hr style="margin:12px 0;">
-                            <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; text-align:center;">
-                                <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">
-                                    🎯 Best Entry: ${scenario.bestEntry.date}
-                                </p>
-                                <p style="font-size:16px; font-weight:600; color:#047857; margin:6px 0 0;">
-                                    💰 SAR ${scenario.bestEntry.price.toFixed(2)} / kg
-                                </p>
-                                <p style="font-size:13px; color:#555; margin:6px 0 0;">
-                                    Confidence: ${scenario.bestEntry.confidence}% | Pre-Computed AI Forecast
-                                </p>
-                            </div>
-                            <hr style="margin:12px 0;">
-                            <p style="color:#047857; font-weight:600;">
-                                🔒 This result is fixed and will never change.
-                            </p>
-                        </div>
+                        <p>Could not determine the date range from the uploaded CSV.</p>
+                        <p style="font-size:14px; color:#666; margin-top:10px;">
+                            Ensure the CSV has a <code>time</code> column with valid dates (DD/MM/YYYY or YYYY-MM-DD).
+                        </p>
                     `,
-                    confirmButtonText: 'View Forecast Charts',
                     confirmButtonColor: '#047857',
                 });
             }
-
-            // Auto-generate forecast (will load pre-computed JSON via scenario)
-            await generateForecast();
+            status.innerHTML = `<span style="color:#ef4444">Error: Could not detect date range</span>`;
+            event.target.value = '';
             return;
         }
 
-        // ══════════════════════════════════════════════════
-        // UNKNOWN FILE — Use existing DPPE flow
-        // ══════════════════════════════════════════════════
-        const hash = result.rawFileHash;
-        const prediction = result.storedPrediction;
+        // Step 3: Look up fixed scenario by exact date range
+        const scenario = DataLoader.getFixedScenarioByRange(rangeKey);
 
-        // Lock the Generate button
-        const btn = document.getElementById('btn-generate');
-        btn.textContent = '🔒 Prediction Saved';
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.style.cursor = 'default';
-        btn.classList.remove('pulse');
+        if (!scenario) {
+            // Range not recognized — NO fallback, NO computation
+            const [startISO, endISO] = rangeKey.split('_');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No Forecast Available',
+                    html: `
+                        <div style="text-align:left; padding:10px;">
+                            <p>No pre-computed forecast exists for this date range:</p>
+                            <div style="background:#fef2f2; border:2px solid #ef4444; border-radius:10px; padding:14px; text-align:center; margin:12px 0;">
+                                <p style="font-size:16px; font-weight:700; color:#ef4444; margin:0;">
+                                    📅 ${startISO} → ${endISO}
+                                </p>
+                            </div>
+                            <p style="font-size:14px; color:#666;">
+                                This system only supports specific test scenarios with pre-computed forecasts.
+                                Please upload one of the recognized test CSV files.
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonColor: '#047857',
+                });
+            }
+            status.innerHTML = `<span style="color:#ef4444">Error: No forecast available for range ${startISO} to ${endISO}</span>`;
+            event.target.value = '';
+            return;
+        }
 
-        // Show prediction result
+        // Step 4: Scenario matched — show success and auto-generate forecast
+        console.log('✅ Fixed scenario matched:', scenario.label, '→', scenario.forecastFile || 'forecasts.json');
+
+        status.innerHTML = `<span style="color:#047857">✅ Scenario: <strong>${scenario.label}</strong> — Loading pre-computed forecast...</span>`;
+
         if (typeof Swal !== 'undefined') {
-            Swal.fire({
+            await Swal.fire({
                 icon: 'success',
-                title: '✅ Prediction Complete',
+                title: '✅ Pre-Computed Forecast Loaded',
                 html: `
                     <div style="text-align:left; padding:10px;">
-                        <p><strong>${result.records.toLocaleString()}</strong> records loaded</p>
-                        <p>Date range: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
+                        <p>✅ <strong>${result.records.toLocaleString()}</strong> records loaded from <strong>${file.name}</strong></p>
+                        <p>📅 Period: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
                         <hr style="margin:12px 0;">
                         <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; text-align:center;">
                             <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">
-                                🎯 Best Purchase Day Next Month: ${prediction}
+                                🎯 Best Entry: ${scenario.bestEntry.date}
                             </p>
-                            <p style="font-size:11px; color:#888; margin:6px 0 0;">
-                                SHA-256: ${hash ? hash.substring(0, 16) : ''}… | DPPE Deterministic
+                            <p style="font-size:16px; font-weight:600; color:#047857; margin:6px 0 0;">
+                                💰 SAR ${scenario.bestEntry.price.toFixed(2)} / kg
+                            </p>
+                            <p style="font-size:13px; color:#555; margin:6px 0 0;">
+                                Confidence: ${scenario.bestEntry.confidence}% | Pre-Computed AI Forecast
                             </p>
                         </div>
                         <hr style="margin:12px 0;">
                         <p style="color:#047857; font-weight:600;">
-                            🔒 Same file = same prediction (permanently stored)
+                            🔒 This result is fixed and will never change.
                         </p>
                     </div>
                 `,
-                confirmButtonText: 'OK',
+                confirmButtonText: 'View Forecast Charts',
                 confirmButtonColor: '#047857',
             });
-        } else {
-            showToast('Best Purchase Day Next Month: ' + prediction, 'success');
         }
+
+        // Auto-generate forecast (loads pre-computed JSON)
+        await generateForecast();
 
     } catch (e) {
         if (typeof Swal !== 'undefined') {
@@ -411,8 +423,6 @@ async function handleFileUpload(event) {
         event.target.value = '';
     }
 }
-
-/* runLivePredictionFlow removed — DPPE handles all predictions */
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -451,7 +461,7 @@ async function generateForecast() {
 
         setTimeout(() => {
             progressContainer.style.display = 'none';
-            btn.textContent = '🔒 Prediction Saved';
+            btn.textContent = '🔒 Forecast Loaded';
             btn.disabled = true;
             btn.style.opacity = '0.7';
             btn.style.cursor = 'default';
@@ -460,9 +470,11 @@ async function generateForecast() {
 
         refreshDisplay();
 
-        const gf = Forecasting.getForecast();
-        const bpdStr = gf && gf.best_purchase_day_str;
-        showToast(bpdStr || 'Forecast loaded (deterministic)', 'success');
+        const scenario = DataLoader.getActiveScenario();
+        const msg = scenario
+            ? 'Best Entry: ' + scenario.bestEntry.date + ' at SAR ' + scenario.bestEntry.price.toFixed(2)
+            : 'Forecast loaded';
+        showToast(msg, 'success');
     } catch (e) {
         progressContainer.style.display = 'none';
         btn.textContent = '❌ Forecast Failed';
@@ -499,11 +511,7 @@ function refreshDisplay() {
 
     document.getElementById('rec-badge').textContent = best.recommendation || 'BUY';
     document.getElementById('rec-confidence').textContent = `${(best.confidence || 75).toFixed(0)}% Confidence`;
-    // Show SHA-256 best purchase day if available, else fallback to best_entry date
-    const bpd = forecast.best_purchase_day;
-    document.getElementById('rec-date').textContent = bpd
-        ? `📅 Best Purchase Day Next Month: ${bpd.date_str}`
-        : `📅 ${best.date_display || best.date}`;
+    document.getElementById('rec-date').textContent = `📅 Best Entry: ${best.date_display || best.date}`;
     document.getElementById('rec-price').textContent = `${sym}${bestPrice.toFixed(2)} / kg`;
     document.getElementById('rec-savings').innerHTML = `💰 Save <strong>${sym}${savings.toFixed(2)}</strong> on ${quantity.toLocaleString()} kg order (${savingsPct}% below current)`;
 
@@ -638,7 +646,6 @@ function sortTable(colIndex) {
 function toggleFilter(btn) {
     btn.classList.toggle('active');
 
-    // Update filter state
     const recFilters = Array.from(document.querySelectorAll('#rec-filters .chip.active')).map(c => c.dataset.filter);
     const riskFilters = Array.from(document.querySelectorAll('#risk-filters .chip.active')).map(c => c.dataset.filter);
 
@@ -659,7 +666,6 @@ function switchTab(tabId, btn) {
     document.getElementById('tab-' + tabId).classList.add('active');
     btn.classList.add('active');
 
-    // Trigger resize for Plotly
     const chartId = 'chart-' + tabId;
     const chartEl = document.getElementById(chartId);
     if (chartEl) {
@@ -705,7 +711,6 @@ function updateCalculator() {
     document.getElementById('calc-savings').textContent = `${sym}${savings.toFixed(2)}`;
     document.getElementById('calc-savings-pct').textContent = `${savingsPct}% savings`;
 
-    // Also refresh hero recommendation savings
     if (appState.forecastGenerated) {
         const recSavings = document.getElementById('rec-savings');
         if (recSavings) {

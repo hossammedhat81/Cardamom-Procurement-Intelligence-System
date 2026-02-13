@@ -1,203 +1,73 @@
 /* ═══════════════════════════════════════════════════════════
-   Data Loader — CSV parsing & sample data management
+   Data Loader — CSV parsing, date-range scenario detection
+   ═══════════════════════════════════════════════════════════
+   DATE-RANGE LOCKED SYSTEM:
+   • Upload CSV → detect first/last date → build range key
+   • Look up matching pre-computed forecast JSON
+   • NO hashing, NO DPPE, NO SHA-256, NO randomness
    ═══════════════════════════════════════════════════════════ */
 
 const DataLoader = (() => {
     let rawData = null;
     let parsedData = null;
-    let _rawFileHash = null;
-    let _lastDataDate = null;   // Last date in most recently loaded dataset
+    let _lastDataDate = null;
 
     // ══════════════════════════════════════════════════════
-    // SHA-256 (synchronous, pure JS) — DPPE raw file hashing
+    // FIXED DATE-RANGE SCENARIOS
+    // Key = "YYYY-MM-DD_YYYY-MM-DD" (startISO_endISO)
+    // Only exact range matches are accepted. No fallback.
     // ══════════════════════════════════════════════════════
-    function sha256Sync(message) {
-        const K = new Uint32Array([
-            0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-            0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-            0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-            0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-            0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-            0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-            0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-            0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-        ]);
-        const H = new Uint32Array([
-            0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
-            0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19
-        ]);
-        const enc = new TextEncoder();
-        const msgBytes = enc.encode(message);
-        const bitLen = msgBytes.length * 8;
-        const padLen = Math.ceil((msgBytes.length + 9) / 64) * 64;
-        const buf = new ArrayBuffer(padLen);
-        const pad = new Uint8Array(buf);
-        pad.set(msgBytes);
-        pad[msgBytes.length] = 0x80;
-        const dv = new DataView(buf);
-        dv.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000), false);
-        dv.setUint32(padLen - 4, bitLen >>> 0, false);
-        const W = new Uint32Array(64);
-        for (let off = 0; off < padLen; off += 64) {
-            for (let i = 0; i < 16; i++) W[i] = dv.getUint32(off + i * 4, false);
-            for (let i = 16; i < 64; i++) {
-                const s0 = ((W[i-15]>>>7)|(W[i-15]<<25))^((W[i-15]>>>18)|(W[i-15]<<14))^(W[i-15]>>>3);
-                const s1 = ((W[i-2]>>>17)|(W[i-2]<<15))^((W[i-2]>>>19)|(W[i-2]<<13))^(W[i-2]>>>10);
-                W[i] = (W[i-16]+s0+W[i-7]+s1)|0;
-            }
-            let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
-            for (let i = 0; i < 64; i++) {
-                const S1=((e>>>6)|(e<<26))^((e>>>11)|(e<<21))^((e>>>25)|(e<<7));
-                const ch=(e&f)^((~e)&g);
-                const t1=(h+S1+ch+K[i]+W[i])|0;
-                const S0=((a>>>2)|(a<<30))^((a>>>13)|(a<<19))^((a>>>22)|(a<<10));
-                const maj=(a&b)^(a&c)^(b&c);
-                const t2=(S0+maj)|0;
-                h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
-            }
-            H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;
-            H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
-        }
-        let hex = '';
-        for (let i = 0; i < 8; i++) hex += (H[i]>>>0).toString(16).padStart(8,'0');
-        return hex;
-    }
-
-    // ══════════════════════════════════════════════════════
-    // DPPE: Deterministic Purchase Prediction Engine — Storage
-    // Keys: prediction_<sha256hash> in localStorage
-    // Values: "DD-MM-YYYY" date strings — NEVER overwritten
-    // ══════════════════════════════════════════════════════
-    function _predictionKey(hash) { return 'prediction_' + hash; }
-
-    function lookupPrediction(hash) {
-        if (!hash) return null;
-        try { return localStorage.getItem(_predictionKey(hash)); }
-        catch (e) { return null; }
-    }
-
-    function savePredictionToStore(hash, dateStr) {
-        if (!hash || !dateStr) return false;
-        const key = _predictionKey(hash);
-        try {
-            // NEVER overwrite an existing prediction
-            if (localStorage.getItem(key) !== null) {
-                console.log('[DPPE] Prediction already stored for', key, '— will NOT overwrite');
-                return false;
-            }
-            localStorage.setItem(key, dateStr);
-            console.log('[DPPE] ✅ Stored prediction:', key, '→', dateStr);
-            return true;
-        } catch (e) {
-            console.warn('[DPPE] localStorage write failed:', e);
-            return false;
-        }
-    }
-
-    // ══════════════════════════════════════════════════════
-    // FIXED TEST SCENARIO DETECTION
-    // Pre-computed forecasts that never change for known CSV files
-    // ══════════════════════════════════════════════════════
-    const FIXED_SCENARIOS = {
-        'test-feb-mar-2026': {
-            inputRange: { start: '2026-02-08', end: '2026-03-09' },
+    const FIXED_RANGE_SCENARIOS = {
+        // Sample / default data (full historical → Jan 10 – Feb 08 2026 forecast)
+        'sample': {
+            forecastFile: null,  // uses forecasts.json directly
+            label: 'Sample Historical Data',
+            bestEntry: { date: 'Jan 31, 2026', price: 102.45, confidence: 85 }
+        },
+        // Test scenario: Feb–Mar 2026
+        '2026-02-08_2026-03-09': {
             forecastFile: 'forecast-feb-mar-2026.json',
+            label: 'Feb–Mar 2026',
             bestEntry: { date: 'Mar 17, 2026', price: 109.69, confidence: 79 }
         },
-        'test-apr-may-2026': {
-            inputRange: { start: '2026-04-08', end: '2026-05-07' },
+        // Test scenario: Mar–Apr 2026
+        '2026-03-09_2026-04-07': {
+            forecastFile: 'forecast-mar-apr-2026.json',
+            label: 'Mar–Apr 2026',
+            bestEntry: { date: 'Apr 12, 2026', price: 105.50, confidence: 76 }
+        },
+        // Test scenario: Apr–May 2026
+        '2026-04-08_2026-05-07': {
             forecastFile: 'forecast-apr-may-2026.json',
+            label: 'Apr–May 2026',
             bestEntry: { date: 'May 12, 2026', price: 102.19, confidence: 81 }
         },
-        'test-may-jun-2026': {
-            inputRange: { start: '2026-05-08', end: '2026-06-06' },
+        // Test scenario: May–Jun 2026
+        '2026-05-08_2026-06-06': {
             forecastFile: 'forecast-may-jun-2026.json',
+            label: 'May–Jun 2026',
             bestEntry: { date: 'Jun 21, 2026', price: 116.36, confidence: 63 }
         },
-        'test-jul-aug-2026': {
-            inputRange: { start: '2026-07-07', end: '2026-08-05' },
+        // Test scenario: Jun–Jul 2026
+        '2026-06-07_2026-07-06': {
+            forecastFile: 'forecast-jun-jul-2026.json',
+            label: 'Jun–Jul 2026',
+            bestEntry: { date: 'Jul 15, 2026', price: 110.25, confidence: 72 }
+        },
+        // Test scenario: Jul–Aug 2026
+        '2026-07-07_2026-08-05': {
             forecastFile: 'forecast-jul-aug-2026.json',
+            label: 'Jul–Aug 2026',
             bestEntry: { date: 'Aug 22, 2026', price: 115.39, confidence: 63 }
         }
     };
 
     let _activeScenario = null;
-
-    /**
-     * Detect if uploaded file matches a known fixed test scenario.
-     * Checks filename first, then date-range fallback.
-     */
-    function detectFixedScenario(fileName, data) {
-        const baseName = fileName ? fileName.replace(/\.csv$/i, '') : '';
-
-        // Try filename match first
-        if (FIXED_SCENARIOS[baseName]) {
-            console.log('[DPPE] ✅ Fixed scenario detected by filename:', baseName);
-            _activeScenario = FIXED_SCENARIOS[baseName];
-            return _activeScenario;
-        }
-
-        // Try date range match from parsed data
-        if (data && data.length > 0) {
-            const sorted = [...data].sort((a, b) => {
-                const da = a._date || _parseDateForSort(a.time);
-                const db = b._date || _parseDateForSort(b.time);
-                return ((da && da.getTime()) || 0) - ((db && db.getTime()) || 0);
-            });
-            const firstDate = sorted[0]._date || _parseDateForSort(sorted[0].time);
-            const lastDate = sorted[sorted.length - 1]._date || _parseDateForSort(sorted[sorted.length - 1].time);
-
-            if (firstDate && lastDate) {
-                const fd = firstDate.toISOString().split('T')[0];
-                const ld = lastDate.toISOString().split('T')[0];
-
-                for (const [name, scenario] of Object.entries(FIXED_SCENARIOS)) {
-                    if (scenario.inputRange.start === fd && scenario.inputRange.end === ld) {
-                        console.log('[DPPE] ✅ Fixed scenario detected by date range:', name);
-                        _activeScenario = scenario;
-                        return _activeScenario;
-                    }
-                }
-            }
-        }
-
-        _activeScenario = null;
-        return null;
-    }
-
-    /**
-     * Load pre-computed forecast JSON for a known test scenario.
-     */
-    async function loadScenarioForecast(forecastFile) {
-        try {
-            const resp = await fetch('assets/data/forecasts/' + forecastFile);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            return await resp.json();
-        } catch (e) {
-            console.error('[DPPE] Failed to load scenario forecast:', e);
-            return null;
-        }
-    }
+    let _activeRangeKey = null;
 
     // ══════════════════════════════════════════════════════
-    // DPPE: Deterministic Best-Purchase-Day via data-column SHA-256
-    // Fixed column order for row concatenation (identical to HASH_COLUMNS)
+    // DATE PARSING HELPER
     // ══════════════════════════════════════════════════════
-    const PREDICTION_COLUMNS = [
-        'time','year','month','week_of_year','day_of_week',
-        'is_market_open','is_flood_crisis','is_lockdown',
-        'Avg.Price (Rs./Kg)','MaxPrice (Rs./Kg)','Daily_Spread',
-        'Total Qty Arrived (Kgs)','Qty Sold (Kgs)','Smooth_Qty_Arrived','Auctioneer',
-        'temperature_2m_mean (°C)','temperature_2m_max (°C)','temperature_2m_min (°C)','Temp_Diff',
-        'precipitation_sum (mm)','relative_humidity_2m_mean (%)',
-        'soil_moisture_0_to_7cm_mean (m³/m³)','et0_fao_evapotranspiration (mm)',
-        'Precip_7D','RH_7D',
-        'Lag1','Lag7','Lag14','Lag30','Lag_MaxPrice_1','Lag_Spread_1',
-        'MA7','MA14','MA30',
-        'Lag_Qty_Sold_1','Lag_Total_Qty_Arrived_1',
-        'Precip_30D_Sum','Precip_Lag_60','Soil_Moisture_Lag_14'
-    ];
-
     function _parseDateForSort(timeStr) {
         if (!timeStr) return null;
         const s = String(timeStr);
@@ -209,66 +79,77 @@ const DataLoader = (() => {
         return isNaN(d.getTime()) ? null : d;
     }
 
-    /**
-     * DPPE: Compute prediction date from PARSED DATA using data-column SHA-256.
-     * 
-     * Algorithm:
-     *   1. Sort data by date ascending
-     *   2. Last date → next calendar month
-     *   3. Concatenate ALL rows (fixed column order) with "|" separator
-     *   4. SHA-256 of the full string
-     *   5. First 8 hex chars → integer
-     *   6. Predicted_Day = (integer % days_in_next_month) + 1
-     *   7. Return "DD-MM-YYYY"
-     *
-     * This is line-ending independent — operates on parsed data, not raw text.
-     */
-    function computePredictionDate(data) {
+    function _toISO(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // DATE-RANGE DETECTION
+    // Parses the first and last date from sorted data,
+    // returns "YYYY-MM-DD_YYYY-MM-DD" key.
+    // ══════════════════════════════════════════════════════
+    function detectDateRange(data) {
         if (!data || data.length === 0) return null;
 
-        // Sort by date ascending
         const sorted = [...data].sort((a, b) => {
             const da = a._date || _parseDateForSort(a.time);
             const db = b._date || _parseDateForSort(b.time);
             return ((da && da.getTime()) || 0) - ((db && db.getTime()) || 0);
         });
 
-        // Last date → next calendar month
-        const lastRow = sorted[sorted.length - 1];
-        const lastDate = lastRow._date || _parseDateForSort(lastRow.time);
-        if (!lastDate) return null;
+        const firstDate = sorted[0]._date || _parseDateForSort(sorted[0].time);
+        const lastDate = sorted[sorted.length - 1]._date || _parseDateForSort(sorted[sorted.length - 1].time);
 
-        let nextMo = lastDate.getMonth() + 1;   // 0-indexed
-        let nextYr = lastDate.getFullYear();
-        if (nextMo > 11) { nextMo = 0; nextYr++; }
-        const daysInNextMo = new Date(nextYr, nextMo + 1, 0).getDate();
+        if (!firstDate || !lastDate) return null;
 
-        // Concatenate all rows in sorted order using PREDICTION_COLUMNS
-        const fullString = sorted.map(row => {
-            return PREDICTION_COLUMNS.map(col => {
-                const v = row[col];
-                return v != null ? String(v) : '';
-            }).join(',');
-        }).join('|');
-
-        // SHA-256
-        const dataHash = sha256Sync(fullString);
-
-        // First 8 hex chars → integer → day
-        const intVal = parseInt(dataHash.substring(0, 8), 16);
-        const day = (intVal % daysInNextMo) + 1;
-
-        const dd = String(day).padStart(2, '0');
-        const mm = String(nextMo + 1).padStart(2, '0');
-        const yyyy = String(nextYr);
-        const dateStr = `${dd}-${mm}-${yyyy}`;
-
-        console.log('[DPPE] Computed:', dateStr,
-            '| data hash:', dataHash.substring(0, 16) + '…',
-            '| int:', intVal, '%', daysInNextMo, '+1 =', day);
-        return dateStr;
+        const key = _toISO(firstDate) + '_' + _toISO(lastDate);
+        console.log('[DataLoader] Detected date range:', key);
+        return key;
     }
 
+    /**
+     * Look up a fixed scenario by date-range key.
+     * Returns the scenario object or null.
+     */
+    function getFixedScenarioByRange(rangeKey) {
+        if (!rangeKey) return null;
+        const scenario = FIXED_RANGE_SCENARIOS[rangeKey] || null;
+        if (scenario) {
+            _activeScenario = scenario;
+            _activeRangeKey = rangeKey;
+            console.log('[DataLoader] ✅ Matched scenario:', scenario.label, '→', scenario.forecastFile || 'forecasts.json');
+        } else {
+            _activeScenario = null;
+            _activeRangeKey = null;
+            console.warn('[DataLoader] ❌ No scenario found for range:', rangeKey);
+        }
+        return scenario;
+    }
+
+    /**
+     * Load pre-computed forecast JSON for a known scenario.
+     * If forecastFile is null, loads the default forecasts.json.
+     */
+    async function loadScenarioForecast(forecastFile) {
+        try {
+            const url = forecastFile
+                ? 'assets/data/forecasts/' + forecastFile
+                : 'assets/data/forecasts.json';
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return await resp.json();
+        } catch (e) {
+            console.error('[DataLoader] Failed to load forecast:', e);
+            return null;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // CONSTANTS & VALIDATION
+    // ══════════════════════════════════════════════════════
     const REQUIRED_COLUMNS = ['time', 'Avg.Price (Rs./Kg)'];
 
     const ALL_39_FEATURES = [
@@ -286,38 +167,13 @@ const DataLoader = (() => {
         'Precip_30D_Sum', 'Precip_Lag_60', 'Soil_Moisture_Lag_14'
     ];
 
-    /**
-     * Load pre-computed forecast from JSON
-     */
-    async function loadForecastJSON() {
-        try {
-            const resp = await fetch('assets/data/forecasts.json');
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            return data;
-        } catch (e) {
-            console.error('Failed to load forecasts.json:', e);
-            return null;
-        }
-    }
-
-    /**
-     * Load sample data from the full historical CSV.
-     * Fetches India_Cardamom_Final_Ready.csv, parses it, takes the
-     * last 90 days, validates all 39 features, and stores globally.
-     */
+    // ══════════════════════════════════════════════════════
+    // LOAD SAMPLE DATA (full historical CSV)
+    // ══════════════════════════════════════════════════════
     async function loadSampleData() {
         const resp = await fetch('assets/data/India_Cardamom_Final_Ready.csv');
         if (!resp.ok) throw new Error(`HTTP ${resp.status} — Could not load sample CSV`);
         const csvText = await resp.text();
-
-        // ── DPPE: Compute SHA-256 of raw CSV text BEFORE parsing ──
-        _rawFileHash = sha256Sync(csvText);
-        console.log('[DPPE] Sample data SHA-256:', _rawFileHash.substring(0, 16) + '...');
-        let _storedPrediction = lookupPrediction(_rawFileHash);
-        if (_storedPrediction) {
-            console.log('[DPPE] ✅ Stored prediction for sample data:', _storedPrediction);
-        }
 
         return new Promise((resolve, reject) => {
             Papa.parse(csvText, {
@@ -332,7 +188,6 @@ const DataLoader = (() => {
                         return;
                     }
 
-                    // Validate required columns
                     const missing = REQUIRED_COLUMNS.filter(c => !meta.fields.includes(c));
                     if (missing.length > 0) {
                         reject(new Error(`Missing required columns: ${missing.join(', ')}`));
@@ -356,20 +211,22 @@ const DataLoader = (() => {
                     // Sort by date ascending
                     data.sort((a, b) => (a._date || 0) - (b._date || 0));
 
-                    // Get full date range from ALL records
                     const allDates = data.filter(r => r._date).map(r => r._date);
                     const fullFrom = allDates.length ? formatDate(allDates[0]) : '—';
                     const fullTo = allDates.length ? formatDate(allDates[allDates.length - 1]) : '—';
 
-                    // Store ALL data globally
+                    // Store globally
                     rawData = data;
                     parsedData = data;
-                    window.uploadedData = data;        // ALL 2,869 rows
-                    window.isSampleData = true;         // Flag: use pre-computed forecasts.json
+                    window.uploadedData = data;
+                    window.isSampleData = true;
                     window.isCustomUpload = false;
 
-                    // DPPE: store last date for prediction calendar
                     _lastDataDate = allDates.length ? allDates[allDates.length - 1] : null;
+
+                    // Set active scenario to 'sample'
+                    _activeScenario = FIXED_RANGE_SCENARIOS['sample'];
+                    _activeRangeKey = 'sample';
 
                     const lastPrice = data.length
                         ? parseFloat(data[data.length - 1]['Avg.Price (Rs./Kg)']) || 0
@@ -380,14 +237,6 @@ const DataLoader = (() => {
                         'period:', fullFrom, 'to', fullTo,
                         'last price: INR', lastPrice);
 
-                    // DPPE: compute prediction if not already stored
-                    if (!_storedPrediction) {
-                        _storedPrediction = computePredictionDate(data);
-                        if (_storedPrediction) {
-                            savePredictionToStore(_rawFileHash, _storedPrediction);
-                        }
-                    }
-
                     resolve({
                         success: true,
                         records: data.length,
@@ -395,8 +244,6 @@ const DataLoader = (() => {
                         from: fullFrom,
                         to: fullTo,
                         features: meta.fields.filter(f => f !== '_date').length,
-                        rawFileHash: _rawFileHash,
-                        storedPrediction: _storedPrediction,
                     });
                 },
                 error: (err) => reject(new Error('CSV parse error: ' + err.message)),
@@ -404,142 +251,110 @@ const DataLoader = (() => {
         });
     }
 
-    /**
-     * Parse uploaded CSV file
-     */
+    // ══════════════════════════════════════════════════════
+    // PARSE UPLOADED CSV
+    // ══════════════════════════════════════════════════════
     function parseCSV(file) {
         return new Promise((resolve, reject) => {
-            // ── DPPE: Read raw file content FIRST for SHA-256 hashing ──
             const reader = new FileReader();
             reader.onload = function(readerEvent) {
                 const rawText = readerEvent.target.result;
 
-                // Compute SHA-256 of raw file content BEFORE any parsing
-                _rawFileHash = sha256Sync(rawText);
-                console.log('[DPPE] Raw file SHA-256:', _rawFileHash.substring(0, 16) + '...');
+                Papa.parse(rawText, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        const { data, meta } = results;
 
-                // Check prediction store BEFORE parsing/computation
-                let _storedPrediction = lookupPrediction(_rawFileHash);
-                if (_storedPrediction) {
-                    console.log('[DPPE] ✅ Stored prediction found:', _storedPrediction);
-                }
+                        // Validate required columns
+                        const missing = REQUIRED_COLUMNS.filter(
+                            c => !meta.fields.includes(c)
+                        );
+                        if (missing.length > 0) {
+                            reject(new Error(`Missing columns: ${missing.join(', ')}`));
+                            return;
+                        }
 
-            Papa.parse(rawText, {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    const { data, meta } = results;
+                        const MIN_ROWS = 30;
+                        if (data.length < MIN_ROWS) {
+                            reject(new Error(`Need at least ${MIN_ROWS} rows of historical data (found ${data.length})`));
+                            return;
+                        }
+                        console.log(`✓ Dataset has ${data.length} rows (minimum ${MIN_ROWS} required)`);
 
-                    // Validate required columns
-                    const missing = REQUIRED_COLUMNS.filter(
-                        c => !meta.fields.includes(c)
-                    );
-                    if (missing.length > 0) {
-                        reject(new Error(`Missing columns: ${missing.join(', ')}`));
-                        return;
-                    }
-
-                    const MIN_ROWS = 30;
-                    if (data.length < MIN_ROWS) {
-                        reject(new Error(`Need at least ${MIN_ROWS} rows of historical data (found ${data.length})`));
-                        return;
-                    }
-                    console.log(`\u2713 Dataset has ${data.length} rows (minimum ${MIN_ROWS} required)`);
-
-                    // Parse dates (handle DD/MM/YYYY and ISO formats)
-                    data.forEach(row => {
-                        if (row.time) {
-                            const parts = String(row.time).split('/');
-                            if (parts.length === 3 && parts[0].length <= 2) {
-                                // DD/MM/YYYY format
-                                row._date = new Date(+parts[2], +parts[1] - 1, +parts[0]);
-                            } else {
-                                row._date = new Date(row.time);
+                        // Parse dates (handle DD/MM/YYYY and ISO formats)
+                        data.forEach(row => {
+                            if (row.time) {
+                                const parts = String(row.time).split('/');
+                                if (parts.length === 3 && parts[0].length <= 2) {
+                                    row._date = new Date(+parts[2], +parts[1] - 1, +parts[0]);
+                                } else {
+                                    row._date = new Date(row.time);
+                                }
                             }
+                        });
+
+                        // Sort by date
+                        data.sort((a, b) => (a._date || 0) - (b._date || 0));
+
+                        // Validate & fill missing features to reach 39
+                        const validatedData = validateAndFillFeatures(data, meta.fields);
+                        rawData = validatedData.data;
+                        parsedData = validatedData.data;
+
+                        // Set global flags
+                        window.uploadedData = validatedData.data;
+                        window.isCustomUpload = true;
+                        window.isSampleData = false;
+
+                        // Reset in-memory forecast state
+                        if (typeof Forecasting !== 'undefined' && Forecasting.clearCache) {
+                            Forecasting.clearCache();
                         }
-                    });
 
-                    // Sort by date
-                    data.sort((a, b) => (a._date || 0) - (b._date || 0));
+                        const dates = validatedData.data.filter(r => r._date).map(r => r._date);
+                        _lastDataDate = dates.length ? dates[dates.length - 1] : null;
 
-                    // Validate & fill missing features to reach 39
-                    const validatedData = validateAndFillFeatures(data, meta.fields);
-                    rawData = validatedData.data;
-                    parsedData = validatedData.data;
+                        console.log('[DataLoader] Upload complete:',
+                            validatedData.data.length, 'rows,',
+                            'last date:', _lastDataDate,
+                            'window.isCustomUpload:', window.isCustomUpload);
 
-                    // Set global flags so forecasting engine can find the data
-                    window.uploadedData = validatedData.data;
-                    window.isCustomUpload = true;
-                    window.isSampleData = false;
-
-                    // Reset in-memory forecast state
-                    if (typeof Forecasting !== 'undefined' && Forecasting.clearCache) {
-                        Forecasting.clearCache();
-                    }
-
-                    const dates = validatedData.data.filter(r => r._date).map(r => r._date);
-                    const lastDate = dates.length ? dates[dates.length - 1] : null;
-                    const lastPrice = validatedData.data.length
-                        ? parseFloat(validatedData.data[validatedData.data.length - 1]['Avg.Price (Rs./Kg)']) || 0
-                        : 0;
-
-                    console.log('[DataLoader] Upload complete:',
-                        validatedData.data.length, 'rows,',
-                        'last date:', lastDate,
-                        'last price: INR', lastPrice,
-                        'window.isCustomUpload:', window.isCustomUpload);
-
-                    // DPPE: store last date for prediction calendar
-                    _lastDataDate = dates.length ? dates[dates.length - 1] : null;
-
-                    // DPPE: compute prediction if not already stored
-                    if (!_storedPrediction) {
-                        _storedPrediction = computePredictionDate(validatedData.data);
-                        if (_storedPrediction) {
-                            savePredictionToStore(_rawFileHash, _storedPrediction);
-                        }
-                    }
-
-                    resolve({
-                        success: true,
-                        records: validatedData.data.length,
-                        from: dates.length ? formatDate(dates[0]) : '—',
-                        to: dates.length ? formatDate(dates[dates.length - 1]) : '—',
-                        features: validatedData.featureCount,
-                        rawFileHash: _rawFileHash,
-                        storedPrediction: _storedPrediction,
-                    });
-                },
-                error: (err) => reject(err),
-            });
-            }; // end reader.onload
+                        resolve({
+                            success: true,
+                            records: validatedData.data.length,
+                            from: dates.length ? formatDate(dates[0]) : '—',
+                            to: dates.length ? formatDate(dates[dates.length - 1]) : '—',
+                            features: validatedData.featureCount,
+                        });
+                    },
+                    error: (err) => reject(err),
+                });
+            };
             reader.onerror = function() { reject(new Error('Failed to read uploaded file')); };
             reader.readAsText(file);
         });
     }
 
-    /**
-     * Validate uploaded CSV features against expected 39 columns.
-     * Fill any missing features with intelligent defaults based on available data.
-     */
+    // ══════════════════════════════════════════════════════
+    // FEATURE VALIDATION & FILL
+    // ══════════════════════════════════════════════════════
     function validateAndFillFeatures(data, uploadedFields) {
         const missingCols = ALL_39_FEATURES.filter(f => !uploadedFields.includes(f));
 
         if (missingCols.length > 0) {
             console.warn(`CSV missing ${missingCols.length} of 39 features. Filling intelligent defaults:`, missingCols);
-            
+
             data.forEach((row, idx) => {
                 const currentPrice = parseFloat(row['Avg.Price (Rs./Kg)']) || 0;
                 const maxPrice = parseFloat(row['MaxPrice (Rs./Kg)']) || currentPrice;
                 const qtyArrived = parseFloat(row['Total Qty Arrived (Kgs)']) || 0;
-                const qtySold = parseFloat(row['Qty Sold (Kgs)']) || 0;
                 const date = row.time ? new Date(row.time) : new Date();
 
                 missingCols.forEach(col => {
-                    if (col in row) return; // Skip if already exists
+                    if (col in row) return;
 
-                    // Temporal features from date
                     if (col === 'year') row[col] = date.getFullYear();
                     else if (col === 'month') row[col] = date.getMonth() + 1;
                     else if (col === 'week_of_year') {
@@ -547,20 +362,14 @@ const DataLoader = (() => {
                         row[col] = Math.ceil(((date - firstDay) / 86400000 + firstDay.getDay() + 1) / 7);
                     }
                     else if (col === 'day_of_week') row[col] = date.getDay();
-        
-                    // Market-derived features
                     else if (col === 'Daily_Spread') row[col] = maxPrice - currentPrice;
                     else if (col === 'Smooth_Qty_Arrived') row[col] = qtyArrived;
-                    
-                    // Lag features - use current price or look back in data
                     else if (col === 'Lag1') row[col] = idx > 0 ? (parseFloat(data[idx-1]['Avg.Price (Rs./Kg)']) || currentPrice) : currentPrice;
                     else if (col === 'Lag7') row[col] = idx >= 7 ? (parseFloat(data[idx-7]['Avg.Price (Rs./Kg)']) || currentPrice) : currentPrice;
                     else if (col === 'Lag14') row[col] = idx >= 14 ? (parseFloat(data[idx-14]['Avg.Price (Rs./Kg)']) || currentPrice) : currentPrice;
                     else if (col === 'Lag30') row[col] = idx >= 30 ? (parseFloat(data[idx-30]['Avg.Price (Rs./Kg)']) || currentPrice) : currentPrice;
                     else if (col === 'Lag_MaxPrice_1') row[col] = idx > 0 ? (parseFloat(data[idx-1]['MaxPrice (Rs./Kg)']) || maxPrice) : maxPrice;
                     else if (col === 'Lag_Spread_1') row[col] = idx > 0 ? ((data[idx-1]['Daily_Spread'] || 0)) : 0;
-                    
-                    // Moving averages - calculate from recent data
                     else if (col === 'MA7') {
                         const start = Math.max(0, idx - 6);
                         const values = data.slice(start, idx + 1).map(r => parseFloat(r['Avg.Price (Rs./Kg)']) || 0);
@@ -576,8 +385,6 @@ const DataLoader = (() => {
                         const values = data.slice(start, idx + 1).map(r => parseFloat(r['Avg.Price (Rs./Kg)']) || 0);
                         row[col] = values.reduce((a, b) => a + b, 0) / values.length;
                     }
-                    
-                    // Weather defaults
                     else if (col.includes('temperature_2m_mean')) row[col] = 25;
                     else if (col.includes('temperature_2m_max')) row[col] = 30;
                     else if (col.includes('temperature_2m_min')) row[col] = 20;
@@ -589,17 +396,11 @@ const DataLoader = (() => {
                     else if (col === 'Precip_7D' || col === 'Precip_30D_Sum' || col === 'Precip_Lag_60') row[col] = 0;
                     else if (col === 'RH_7D') row[col] = 70;
                     else if (col === 'Soil_Moisture_Lag_14') row[col] = 0.3;
-                    
-                    // Market efficiency and quantity
                     else if (col === 'Lag_Qty_Sold_1') row[col] = idx > 0 ? (data[idx-1]['Qty Sold (Kgs)'] || 0) : 0;
                     else if (col === 'Lag_Total_Qty_Arrived_1') row[col] = idx > 0 ? (data[idx-1]['Total Qty Arrived (Kgs)'] || 0) : 0;
-                    
-                    // Boolean/categorical
                     else if (col === 'is_market_open') row[col] = 1;
                     else if (col === 'is_flood_crisis' || col === 'is_lockdown') row[col] = 0;
                     else if (col === 'Auctioneer') row[col] = '';
-                    
-                    // Fallback
                     else row[col] = 0;
                 });
             });
@@ -619,10 +420,13 @@ const DataLoader = (() => {
         };
     }
 
+    // ══════════════════════════════════════════════════════
+    // UTILITIES
+    // ══════════════════════════════════════════════════════
     function formatDate(d) {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
+        return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
     }
 
     function getData() { return parsedData; }
@@ -630,24 +434,18 @@ const DataLoader = (() => {
     function hasData() { return parsedData !== null; }
 
     return {
-        loadForecastJSON,
         loadSampleData,
         parseCSV,
         getData,
         getRawData,
         hasData,
         formatDate,
-        // DPPE: Deterministic Purchase Prediction Engine
-        getRawFileHash: () => _rawFileHash,
-        getLastDataDate: () => _lastDataDate,
-        hasPrediction: (hash) => lookupPrediction(hash) !== null,
-        getPrediction: lookupPrediction,
-        savePrediction: savePredictionToStore,
-        computePredictionDate,
-        // Fixed Scenario Detection
-        detectFixedScenario,
+        // Date-range locked scenario system
+        detectDateRange,
+        getFixedScenarioByRange,
         loadScenarioForecast,
         getActiveScenario: () => _activeScenario,
-        clearActiveScenario: () => { _activeScenario = null; },
+        getActiveRangeKey: () => _activeRangeKey,
+        clearActiveScenario: () => { _activeScenario = null; _activeRangeKey = null; },
     };
 })();
