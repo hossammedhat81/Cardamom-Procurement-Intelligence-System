@@ -14,6 +14,31 @@ const LiveForecasting = (() => {
 
     const EXCHANGE_RATES = { USD: 1, SAR: 3.75, INR: 83.50 };
 
+    // ── Seeded PRNG (mulberry32) — deterministic random from a seed ──
+    function mulberry32(seed) {
+        return function() {
+            seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+            let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+    }
+
+    // Create seed from data: hash of first price + last price + row count + last date
+    function createSeedFromData(data) {
+        const firstPrice = parseFloat(data[0]['Avg.Price (Rs./Kg)']) || 0;
+        const lastPrice = parseFloat(data[data.length - 1]['Avg.Price (Rs./Kg)']) || 0;
+        const rowCount = data.length;
+        const lastDate = data[data.length - 1]._date
+            ? data[data.length - 1]._date.getTime()
+            : 0;
+        // Simple hash combining all values
+        let hash = Math.round(firstPrice * 100) ^ Math.round(lastPrice * 100);
+        hash = hash ^ (rowCount * 7919);
+        hash = hash ^ (Math.round(lastDate / 86400000) * 131);
+        return hash;
+    }
+
     // ── Helpers ──────────────────────────────────────────
     function round(v, d) { return Math.round(v * 10 ** d) / 10 ** d; }
 
@@ -122,6 +147,11 @@ const LiveForecasting = (() => {
 
         if (progressCb) progressCb(55, 'Running 30-day forward simulation...');
 
+        // ── Initialize deterministic PRNG from data ──────
+        const seed = createSeedFromData(data);
+        const rng = mulberry32(seed);
+        console.log('[LiveForecasting] Deterministic seed:', seed);
+
         // ── Determine last date ──────────────────────────
         let lastDate;
         const lastRow = data[data.length - 1];
@@ -154,7 +184,7 @@ const LiveForecasting = (() => {
             const meanRevComp    = (ma30 - price) * 0.015;  // pull toward 30-day mean
             const seasonalComp   = dowEffect[dow] * price;  // day-of-week pattern
             const supplyComp     = supplyPressure * price;  // supply impact
-            const noiseComp      = (Math.random() - 0.5) * 2 * vol * price; // stochastic noise
+            const noiseComp      = (rng() - 0.5) * 2 * vol * price; // deterministic noise
 
             // Combine
             const delta = trendComponent + momentumComp + meanRevComp + seasonalComp + supplyComp + noiseComp;
@@ -178,7 +208,7 @@ const LiveForecasting = (() => {
             // Dynamic confidence based on how far out + volatility
             const baseConf = 90 - i * 1.5; // decays with horizon
             const volPenalty = vol * 200;   // higher vol → lower confidence
-            const confidence = round(Math.max(40, Math.min(95, baseConf - volPenalty + (Math.random() - 0.5) * 5)), 1);
+            const confidence = round(Math.max(40, Math.min(95, baseConf - volPenalty + (rng() - 0.5) * 5)), 1);
 
             // Risk assessment
             const risk = Math.abs(dailyPct) > 2.0 || vol > 0.025 ? 'High Risk' : 'Normal';
