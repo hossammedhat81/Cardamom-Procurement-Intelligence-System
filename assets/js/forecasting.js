@@ -108,6 +108,36 @@ const Forecasting = (() => {
     }
 
     /**
+     * DPPE: Build a best_purchase_day object from a stored "DD-MM-YYYY" date string.
+     * Used when loading a previously-stored prediction — NO recomputation needed.
+     */
+    function _buildBestPurchaseDayFromStored(dateStr) {
+        const parts = dateStr.split('-');
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1; // 0-indexed
+        const year = parseInt(parts[2]);
+        const date = new Date(year, month, day);
+        const monthNames = ['January','February','March','April','May','June',
+            'July','August','September','October','November','December'];
+        const dd = String(day).padStart(2, '0');
+        const mm = String(month + 1).padStart(2, '0');
+        const yyyy = String(year);
+        return {
+            date_str: dateStr,
+            date_iso: `${yyyy}-${mm}-${dd}`,
+            date_display: formatDateDisplay(date),
+            month_name: monthNames[month],
+            year: year,
+            day: day,
+            sha256_hash: 'stored',
+            hash_prefix: 'stored',
+            hash_int: 0,
+            days_in_month: new Date(year, month + 1, 0).getDate(),
+            algorithm: 'SHA-256 deterministic (DPPE stored)',
+        };
+    }
+
+    /**
      * Load pre-computed forecast (Option A strategy)
      */
     async function loadForecast(progressCb) {
@@ -155,23 +185,72 @@ const Forecasting = (() => {
             forecastData.analysis_points = generateAnalysisPoints();
         }
 
-        // ── SHA-256 Deterministic Best Purchase Day override ──
-        // Apply the same SHA-256 algorithm to sample data for consistency
-        if (typeof LiveForecasting !== 'undefined' &&
+        // ── DPPE: Deterministic Purchase Prediction Engine ──
+        // Check prediction store FIRST (raw file SHA-256 key)
+        // If stored → use it. If not → compute ONCE, store permanently.
+        const _rawHash = (typeof DataLoader !== 'undefined' && DataLoader.getRawFileHash)
+            ? DataLoader.getRawFileHash() : null;
+        const _storedPred = _rawHash
+            ? (typeof DataLoader !== 'undefined' && DataLoader.getPrediction
+                ? DataLoader.getPrediction(_rawHash) : null)
+            : null;
+
+        if (_storedPred) {
+            // ── STORED PREDICTION: No recomputation ──
+            console.log('[DPPE] Using stored prediction for sample data:', _storedPred);
+            if (progressCb) progressCb(95, 'Loading stored prediction (DPPE)...');
+
+            forecastData.best_purchase_day = _buildBestPurchaseDayFromStored(_storedPred);
+            forecastData.best_purchase_day_str =
+                `Best Purchase Day Next Month: ${_storedPred}`;
+
+            // Build best_entry from the stored date
+            const bpdObj = forecastData.best_purchase_day;
+            const matchingEntry = forecastData.daily_forecasts.find(d => d.date === bpdObj.date_iso);
+            if (matchingEntry) {
+                forecastData.best_entry = {
+                    date: matchingEntry.date,
+                    date_display: matchingEntry.date_display,
+                    price_usd: matchingEntry.price_usd,
+                    price_sar: matchingEntry.price_sar,
+                    price_inr: matchingEntry.price_inr,
+                    recommendation: matchingEntry.recommendation || 'BUY',
+                    confidence: matchingEntry.confidence || 75,
+                    risk: matchingEntry.risk || 'Normal',
+                };
+            } else {
+                const avgUSD = forecastData.daily_forecasts.reduce((s, d) => s + d.price_usd, 0)
+                    / forecastData.daily_forecasts.length;
+                forecastData.best_entry = {
+                    date: bpdObj.date_iso,
+                    date_display: bpdObj.date_display,
+                    price_usd: round(avgUSD, 2),
+                    price_sar: round(avgUSD * EXCHANGE_RATES.SAR, 2),
+                    price_inr: round(avgUSD * EXCHANGE_RATES.INR, 2),
+                    recommendation: 'BUY',
+                    confidence: 82,
+                    risk: 'Normal',
+                };
+            }
+
+        } else if (typeof LiveForecasting !== 'undefined' &&
             typeof LiveForecasting.computeBestPurchaseDay === 'function' &&
             Array.isArray(window.uploadedData) && window.uploadedData.length > 0) {
 
+            // ── FIRST COMPUTATION: compute and store permanently ──
             if (progressCb) progressCb(95, 'Computing SHA-256 deterministic best purchase day...');
 
             const bestDay = LiveForecasting.computeBestPurchaseDay(window.uploadedData);
             if (bestDay) {
                 console.log('[Forecasting] SHA-256 Best Purchase Day (sample):', bestDay.dateStr);
 
-                // Try to find this day in existing daily forecasts
-                const matchingEntry = forecastData.daily_forecasts.find(d => d.date === bestDay.dateISO);
+                // Save to DPPE prediction store (NEVER overwrite)
+                if (_rawHash) {
+                    DataLoader.savePrediction(_rawHash, bestDay.dateStr);
+                }
 
+                const matchingEntry = forecastData.daily_forecasts.find(d => d.date === bestDay.dateISO);
                 if (matchingEntry) {
-                    // Use the existing forecast data for that day
                     forecastData.best_entry = {
                         date: matchingEntry.date,
                         date_display: matchingEntry.date_display,
@@ -183,7 +262,6 @@ const Forecasting = (() => {
                         risk: matchingEntry.risk || 'Normal',
                     };
                 } else {
-                    // SHA-256 day falls outside the forecast range — create synthetic entry
                     const avgUSD = forecastData.daily_forecasts.reduce((s, d) => s + d.price_usd, 0)
                         / forecastData.daily_forecasts.length;
                     forecastData.best_entry = {
@@ -262,6 +340,19 @@ const Forecasting = (() => {
             console.log('[Forecasting] ✅ Found saved forecast in library for', fingerprint);
             forecastData = savedForecast;
             isLivePrediction = true;
+
+            // ── DPPE: Ensure stored prediction is applied ──
+            const rawHash = (typeof DataLoader !== 'undefined' && DataLoader.getRawFileHash)
+                ? DataLoader.getRawFileHash() : null;
+            if (rawHash) {
+                const storedPred = DataLoader.getPrediction ? DataLoader.getPrediction(rawHash) : null;
+                if (storedPred && forecastData.best_purchase_day) {
+                    forecastData.best_purchase_day = _buildBestPurchaseDayFromStored(storedPred);
+                    forecastData.best_purchase_day_str =
+                        'Best Purchase Day Next Month: ' + storedPred;
+                }
+            }
+
             if (progressCb) progressCb(100, 'Forecast loaded from library!');
             return forecastData;
         }
@@ -273,6 +364,23 @@ const Forecasting = (() => {
 
         forecastData = LiveForecasting.predict(uploadedData, progressCb);
         isLivePrediction = true;
+
+        // ── DPPE: Check prediction store for raw file hash ──
+        const rawHash = (typeof DataLoader !== 'undefined' && DataLoader.getRawFileHash)
+            ? DataLoader.getRawFileHash() : null;
+        if (rawHash) {
+            const storedPred = DataLoader.getPrediction ? DataLoader.getPrediction(rawHash) : null;
+            if (storedPred) {
+                // Override with stored prediction — NO recomputation
+                console.log('[DPPE] Overriding with stored prediction:', storedPred);
+                forecastData.best_purchase_day = _buildBestPurchaseDayFromStored(storedPred);
+                forecastData.best_purchase_day_str =
+                    'Best Purchase Day Next Month: ' + storedPred;
+            } else if (forecastData.best_purchase_day && forecastData.best_purchase_day.date_str) {
+                // Save the newly computed prediction permanently
+                DataLoader.savePrediction(rawHash, forecastData.best_purchase_day.date_str);
+            }
+        }
 
         // Save to library permanently
         _saveForecast(fingerprint, uploadedData, forecastData);

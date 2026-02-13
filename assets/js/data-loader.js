@@ -5,6 +5,93 @@
 const DataLoader = (() => {
     let rawData = null;
     let parsedData = null;
+    let _rawFileHash = null;
+
+    // ══════════════════════════════════════════════════════
+    // SHA-256 (synchronous, pure JS) — DPPE raw file hashing
+    // ══════════════════════════════════════════════════════
+    function sha256Sync(message) {
+        const K = new Uint32Array([
+            0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+            0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+            0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+            0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+            0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+            0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+            0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+            0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+        ]);
+        const H = new Uint32Array([
+            0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
+            0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19
+        ]);
+        const enc = new TextEncoder();
+        const msgBytes = enc.encode(message);
+        const bitLen = msgBytes.length * 8;
+        const padLen = Math.ceil((msgBytes.length + 9) / 64) * 64;
+        const buf = new ArrayBuffer(padLen);
+        const pad = new Uint8Array(buf);
+        pad.set(msgBytes);
+        pad[msgBytes.length] = 0x80;
+        const dv = new DataView(buf);
+        dv.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000), false);
+        dv.setUint32(padLen - 4, bitLen >>> 0, false);
+        const W = new Uint32Array(64);
+        for (let off = 0; off < padLen; off += 64) {
+            for (let i = 0; i < 16; i++) W[i] = dv.getUint32(off + i * 4, false);
+            for (let i = 16; i < 64; i++) {
+                const s0 = ((W[i-15]>>>7)|(W[i-15]<<25))^((W[i-15]>>>18)|(W[i-15]<<14))^(W[i-15]>>>3);
+                const s1 = ((W[i-2]>>>17)|(W[i-2]<<15))^((W[i-2]>>>19)|(W[i-2]<<13))^(W[i-2]>>>10);
+                W[i] = (W[i-16]+s0+W[i-7]+s1)|0;
+            }
+            let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+            for (let i = 0; i < 64; i++) {
+                const S1=((e>>>6)|(e<<26))^((e>>>11)|(e<<21))^((e>>>25)|(e<<7));
+                const ch=(e&f)^((~e)&g);
+                const t1=(h+S1+ch+K[i]+W[i])|0;
+                const S0=((a>>>2)|(a<<30))^((a>>>13)|(a<<19))^((a>>>22)|(a<<10));
+                const maj=(a&b)^(a&c)^(b&c);
+                const t2=(S0+maj)|0;
+                h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+            }
+            H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;
+            H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+        }
+        let hex = '';
+        for (let i = 0; i < 8; i++) hex += (H[i]>>>0).toString(16).padStart(8,'0');
+        return hex;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // DPPE: Deterministic Purchase Prediction Engine — Storage
+    // Keys: prediction_<sha256hash> in localStorage
+    // Values: "DD-MM-YYYY" date strings — NEVER overwritten
+    // ══════════════════════════════════════════════════════
+    function _predictionKey(hash) { return 'prediction_' + hash; }
+
+    function lookupPrediction(hash) {
+        if (!hash) return null;
+        try { return localStorage.getItem(_predictionKey(hash)); }
+        catch (e) { return null; }
+    }
+
+    function savePredictionToStore(hash, dateStr) {
+        if (!hash || !dateStr) return false;
+        const key = _predictionKey(hash);
+        try {
+            // NEVER overwrite an existing prediction
+            if (localStorage.getItem(key) !== null) {
+                console.log('[DPPE] Prediction already stored for', key, '— will NOT overwrite');
+                return false;
+            }
+            localStorage.setItem(key, dateStr);
+            console.log('[DPPE] ✅ Stored prediction:', key, '→', dateStr);
+            return true;
+        } catch (e) {
+            console.warn('[DPPE] localStorage write failed:', e);
+            return false;
+        }
+    }
 
     const REQUIRED_COLUMNS = ['time', 'Avg.Price (Rs./Kg)'];
 
@@ -47,6 +134,14 @@ const DataLoader = (() => {
         const resp = await fetch('assets/data/India_Cardamom_Final_Ready.csv');
         if (!resp.ok) throw new Error(`HTTP ${resp.status} — Could not load sample CSV`);
         const csvText = await resp.text();
+
+        // ── DPPE: Compute SHA-256 of raw CSV text BEFORE parsing ──
+        _rawFileHash = sha256Sync(csvText);
+        console.log('[DPPE] Sample data SHA-256:', _rawFileHash.substring(0, 16) + '...');
+        const _storedPrediction = lookupPrediction(_rawFileHash);
+        if (_storedPrediction) {
+            console.log('[DPPE] ✅ Stored prediction for sample data:', _storedPrediction);
+        }
 
         return new Promise((resolve, reject) => {
             Papa.parse(csvText, {
@@ -113,6 +208,8 @@ const DataLoader = (() => {
                         from: fullFrom,
                         to: fullTo,
                         features: meta.fields.filter(f => f !== '_date').length,
+                        rawFileHash: _rawFileHash,
+                        storedPrediction: _storedPrediction,
                     });
                 },
                 error: (err) => reject(new Error('CSV parse error: ' + err.message)),
@@ -125,7 +222,22 @@ const DataLoader = (() => {
      */
     function parseCSV(file) {
         return new Promise((resolve, reject) => {
-            Papa.parse(file, {
+            // ── DPPE: Read raw file content FIRST for SHA-256 hashing ──
+            const reader = new FileReader();
+            reader.onload = function(readerEvent) {
+                const rawText = readerEvent.target.result;
+
+                // Compute SHA-256 of raw file content BEFORE any parsing
+                _rawFileHash = sha256Sync(rawText);
+                console.log('[DPPE] Raw file SHA-256:', _rawFileHash.substring(0, 16) + '...');
+
+                // Check prediction store BEFORE parsing/computation
+                const _storedPrediction = lookupPrediction(_rawFileHash);
+                if (_storedPrediction) {
+                    console.log('[DPPE] ✅ Stored prediction found:', _storedPrediction);
+                }
+
+            Papa.parse(rawText, {
                 header: true,
                 dynamicTyping: true,
                 skipEmptyLines: true,
@@ -205,10 +317,15 @@ const DataLoader = (() => {
                         to: dates.length ? formatDate(dates[dates.length - 1]) : '—',
                         features: validatedData.featureCount,
                         fingerprint: _uploadFingerprint,
+                        rawFileHash: _rawFileHash,
+                        storedPrediction: _storedPrediction,
                     });
                 },
                 error: (err) => reject(err),
             });
+            }; // end reader.onload
+            reader.onerror = function() { reject(new Error('Failed to read uploaded file')); };
+            reader.readAsText(file);
         });
     }
 
@@ -330,5 +447,10 @@ const DataLoader = (() => {
         getRawData,
         hasData,
         formatDate,
+        // DPPE: Deterministic Purchase Prediction Engine
+        getRawFileHash: () => _rawFileHash,
+        hasPrediction: (hash) => lookupPrediction(hash) !== null,
+        getPrediction: lookupPrediction,
+        savePrediction: savePredictionToStore,
     };
 })();

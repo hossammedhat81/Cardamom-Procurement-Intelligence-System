@@ -301,6 +301,13 @@ async function handleFileUpload(event) {
         const fp = result.fingerprint;
         const hasSaved = fp && Forecasting.hasSavedForecast(fp);
 
+        // DPPE: Check prediction store for raw file hash
+        const rawHash = result.rawFileHash;
+        const dppeStored = result.storedPrediction;
+        if (dppeStored) {
+            console.log('[DPPE] Prediction already stored for this file:', dppeStored);
+        }
+
         if (hasSaved) {
             // ═══ SAME DATA — load saved forecast instantly ═══
             console.log('[main] 📚 Found saved forecast in library for', fp);
@@ -339,7 +346,9 @@ async function handleFileUpload(event) {
                 const best = savedForecast.best_entry;
                 const period = savedForecast.forecast_period;
                 const bpd = savedForecast.best_purchase_day;
-                const bpdStr = savedForecast.best_purchase_day_str || '';
+                const bpdStr = dppeStored
+                    ? `Best Purchase Day Next Month: ${dppeStored}`
+                    : (savedForecast.best_purchase_day_str || '');
                 Swal.fire({
                     icon: 'success',
                     title: '✅ Forecast Retrieved from Library',
