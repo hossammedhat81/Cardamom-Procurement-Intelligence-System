@@ -610,6 +610,18 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toast-container"></div>
 
+    <!-- Force clear stale service workers and caches on every load -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(r) { r.unregister(); });
+        });
+        caches.keys().then(function(keys) {
+            keys.forEach(function(k) { caches.delete(k); });
+        });
+    }
+    </script>
+
     <!-- Scripts -->
     <script src="assets/js/data-loader.js?v=8"></script>
     <!-- live-forecasting.js REMOVED — system is now date-range locked -->

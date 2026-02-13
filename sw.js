@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════
    Service Worker — Cardamom Intelligence PWA
-   Offline caching with stale-while-revalidate
+   Network-first for local assets, cache-first for CDN
    ═══════════════════════════════════════════════ */
 
-const CACHE_NAME = 'cardamom-v4';
+const CACHE_NAME = 'cardamom-v8';
 const STATIC_ASSETS = [
     './',
     './index.html',
@@ -12,14 +12,18 @@ const STATIC_ASSETS = [
     './assets/css/dark-theme.css',
     './assets/css/animations.css',
     './assets/js/data-loader.js',
-    './assets/js/live-forecasting.js',
     './assets/js/forecasting.js',
     './assets/js/charts.js',
     './assets/js/pdf-export.js',
     './assets/js/main.js',
     './assets/data/forecasts.json',
+    './assets/data/forecasts/forecast-feb-mar-2026.json',
+    './assets/data/forecasts/forecast-mar-apr-2026.json',
+    './assets/data/forecasts/forecast-apr-may-2026.json',
+    './assets/data/forecasts/forecast-may-jun-2026.json',
+    './assets/data/forecasts/forecast-jun-jul-2026.json',
+    './assets/data/forecasts/forecast-jul-aug-2026.json',
     './assets/data/sample-data.json',
-    './assets/data/test-upload-feb-mar-2026.csv',
     './assets/images/favicon.svg',
 ];
 
@@ -72,18 +76,16 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Local assets — cache first
+    // Local assets — NETWORK FIRST (always get latest code)
     if (url.origin === location.origin) {
         event.respondWith(
-            caches.match(event.request).then((cached) => {
-                return cached || fetch(event.request).then((response) => {
-                    if (response.ok) {
-                        const clone = response.clone();
-                        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-                    }
-                    return response;
-                });
-            })
+            fetch(event.request).then((response) => {
+                if (response.ok) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+                }
+                return response;
+            }).catch(() => caches.match(event.request))
         );
         return;
     }
