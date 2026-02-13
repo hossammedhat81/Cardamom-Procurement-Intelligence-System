@@ -48,20 +48,35 @@ const LiveForecasting = (() => {
      * Uses first 10 + last 10 rows for a unique fingerprint.
      */
     function createSeedFromData(data) {
-        let hash = 0;
-        const sample = [
-            ...data.slice(0, Math.min(10, data.length)),
-            ...data.slice(-Math.min(10, data.length))
-        ];
-        sample.forEach(row => {
-            const str = String(row.time || '') + String(row['Avg.Price (Rs./Kg)'] || '');
-            for (let i = 0; i < str.length; i++) {
-                const c = str.charCodeAt(i);
-                hash = ((hash << 5) - hash) + c;
-                hash = hash & hash; // 32-bit int
-            }
+        if (!data || data.length === 0) return 12345;
+
+        // Build deterministic fingerprint: first 5, last 5, middle, plus length
+        let seedString = 'N' + data.length;
+        const indices = [];
+        for (let i = 0; i < Math.min(5, data.length); i++) indices.push(i);
+        const mid = Math.floor(data.length / 2);
+        if (!indices.includes(mid)) indices.push(mid);
+        for (let i = Math.max(0, data.length - 5); i < data.length; i++) {
+            if (!indices.includes(i)) indices.push(i);
+        }
+        indices.forEach(idx => {
+            const row = data[idx];
+            if (!row) return;
+            const t = String(row.time || '');
+            const p = parseFloat(row['Avg.Price (Rs./Kg)']) || 0;
+            const q = parseFloat(row['Total Qty Arrived (Kgs)']) || 0;
+            seedString += '|' + t + ':' + p.toFixed(2) + ':' + q.toFixed(0);
         });
-        return Math.abs(hash) || 12345;
+
+        let hash = 0;
+        for (let i = 0; i < seedString.length; i++) {
+            const c = seedString.charCodeAt(i);
+            hash = ((hash << 5) - hash) + c;
+            hash = hash & hash; // 32-bit int
+        }
+        const seed = Math.abs(hash) || 12345;
+        console.log('[LiveForecasting] Deterministic seed:', seed, 'from', data.length, 'rows');
+        return seed;
     }
 
     // ── Helpers ──────────────────────────────────────────

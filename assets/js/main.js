@@ -297,28 +297,71 @@ async function handleFileUpload(event) {
         status.innerHTML = `<span style="color:#047857">Parsed ${result.records.toLocaleString()} rows from ${file.name}</span>`;
         showDataSummary(result);
 
+        // Re-enable the Generate button for new uploads
+        const btn = document.getElementById('btn-generate');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.textContent = '🚀 Generate 30-Day Forecast';
+        btn.classList.add('pulse');
+        btn.onclick = function() { generateForecast(); };
+
+        // Check if this exact data was already analyzed (cached forecast exists)
+        const cachedForecast = Forecasting.hasForecast() && Forecasting.getDataFingerprint() !== null;
+        const isSameDataCached = cachedForecast; // cache wasn't cleared = same data
+
         if (typeof Swal !== 'undefined') {
-            const goNow = await Swal.fire({
-                icon: 'success',
-                title: 'Upload Successful!',
-                html: `
-                    <div style="text-align:left; padding:10px;">
-                        <p><strong>${result.records.toLocaleString()}</strong> records loaded</p>
-                        <p>Date range: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
-                        <p>Features validated: <strong>${result.features}/39</strong></p>
-                        <hr style="margin:12px 0; border-color:#e2e8f0">
-                        <p style="color:#047857; font-weight:600;">
-                            Ready to generate 30-day predictions starting from the day after your last date!
-                        </p>
-                    </div>
-                `,
-                confirmButtonText: 'Generate Forecast Now',
-                confirmButtonColor: '#047857',
-                showCancelButton: true,
-                cancelButtonText: 'Maybe Later',
-            });
-            if (goNow.isConfirmed) {
-                await runLivePredictionFlow(result);
+            if (isSameDataCached) {
+                // Same data re-uploaded — offer to reuse cached forecast
+                const goNow = await Swal.fire({
+                    icon: 'info',
+                    title: 'Data Already Analyzed',
+                    html: `
+                        <div style="text-align:left; padding:10px;">
+                            <p>You've uploaded this <strong>exact dataset</strong> before.</p>
+                            <p><strong>${result.records.toLocaleString()}</strong> records ·
+                                <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
+                            <hr style="margin:12px 0; border-color:#e2e8f0">
+                            <p style="color:#047857; font-weight:600;">
+                                ✅ Same data = Same forecast (deterministic system)
+                            </p>
+                            <p style="font-size:13px; color:#666; margin-top:6px;">
+                                The previously computed forecast will be displayed.
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonText: 'View Forecast',
+                    confirmButtonColor: '#047857',
+                    showCancelButton: true,
+                    cancelButtonText: 'Dismiss',
+                });
+                if (goNow.isConfirmed) {
+                    await runLivePredictionFlow(result);
+                }
+            } else {
+                // New data — normal flow
+                const goNow = await Swal.fire({
+                    icon: 'success',
+                    title: 'Upload Successful!',
+                    html: `
+                        <div style="text-align:left; padding:10px;">
+                            <p><strong>${result.records.toLocaleString()}</strong> records loaded</p>
+                            <p>Date range: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
+                            <p>Features validated: <strong>${result.features}/39</strong></p>
+                            <hr style="margin:12px 0; border-color:#e2e8f0">
+                            <p style="color:#047857; font-weight:600;">
+                                Ready to generate 30-day predictions starting from the day after your last date!
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Generate Forecast Now',
+                    confirmButtonColor: '#047857',
+                    showCancelButton: true,
+                    cancelButtonText: 'Maybe Later',
+                });
+                if (goNow.isConfirmed) {
+                    await runLivePredictionFlow(result);
+                }
             }
         } else {
             // No SweetAlert2 — auto-trigger
@@ -407,7 +450,24 @@ async function runLivePredictionFlow(uploadResult) {
         btn.textContent = isLiveBtnText
             ? '✅ Live Forecast Generated (Deterministic)'
             : '✅ Forecast Generated';
-        btn.disabled = false;
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'default';
+        btn.classList.remove('pulse');
+        btn.onclick = function(e) {
+            e.preventDefault();
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Forecast Already Generated',
+                    html: '<p>This forecast is <strong>deterministic</strong> — same data always produces the exact same result.</p>' +
+                          '<p style="margin-top:10px;color:#047857;">To get a different forecast, upload a different dataset.</p>',
+                    confirmButtonColor: '#047857',
+                    timer: 4000,
+                });
+            }
+            document.getElementById('forecast')?.scrollIntoView({ behavior: 'smooth' });
+        };
 
         // Render all charts and tables
         refreshDisplay();
@@ -452,8 +512,11 @@ async function runLivePredictionFlow(uploadResult) {
     } catch (err) {
         progressContainer.style.display = 'none';
         btn.disabled = false;
-        btn.textContent = 'Generate 30-Day Forecast';
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.textContent = '🚀 Generate 30-Day Forecast';
         btn.classList.add('pulse');
+        btn.onclick = function() { generateForecast(); };
         console.error('Live prediction error:', err);
         showToast('Prediction failed: ' + err.message, 'error');
     }
@@ -501,7 +564,24 @@ async function generateForecast() {
             btn.textContent = live
                 ? '✅ Live Forecast Generated (Deterministic)'
                 : '✅ Forecast Generated';
-            btn.disabled = false;
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'default';
+            btn.classList.remove('pulse');
+            btn.onclick = function(e) {
+                e.preventDefault();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Forecast Already Generated',
+                        html: '<p>This forecast is <strong>deterministic</strong> — same data always produces the exact same result.</p>' +
+                              '<p style="margin-top:10px;color:#047857;">To get a different forecast, upload a different dataset.</p>',
+                        confirmButtonColor: '#047857',
+                        timer: 4000,
+                    });
+                }
+                document.getElementById('forecast')?.scrollIntoView({ behavior: 'smooth' });
+            };
         }, 500);
 
         // Render everything
@@ -512,7 +592,11 @@ async function generateForecast() {
     } catch (e) {
         progressContainer.style.display = 'none';
         btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
         btn.classList.add('pulse');
+        btn.textContent = '🚀 Generate 30-Day Forecast';
+        btn.onclick = function() { generateForecast(); };
         showToast('Forecast failed: ' + e.message, 'error');
     }
 }

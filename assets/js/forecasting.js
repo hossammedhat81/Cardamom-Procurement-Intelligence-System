@@ -26,11 +26,22 @@ const Forecasting = (() => {
 
     function _hashData(data) {
         if (!data || !data.length) return null;
-        const fp = String(data[0] && data[0].time || '') +
-                   String(data[0] && data[0]['Avg.Price (Rs./Kg)'] || '') +
-                   String(data[data.length - 1] && data[data.length - 1].time || '') +
-                   String(data[data.length - 1] && data[data.length - 1]['Avg.Price (Rs./Kg)'] || '') +
-                   data.length;
+        // Robust hash: first 5 + last 5 + middle row + length
+        const indices = [];
+        for (let i = 0; i < Math.min(5, data.length); i++) indices.push(i);
+        const mid = Math.floor(data.length / 2);
+        if (!indices.includes(mid)) indices.push(mid);
+        for (let i = Math.max(0, data.length - 5); i < data.length; i++) {
+            if (!indices.includes(i)) indices.push(i);
+        }
+        let fp = 'L' + data.length;
+        indices.forEach(idx => {
+            const row = data[idx];
+            if (!row) return;
+            const t = String(row.time || '');
+            const p = parseFloat(row['Avg.Price (Rs./Kg)']) || 0;
+            fp += '|' + t + ':' + p.toFixed(2);
+        });
         let h = 0;
         for (let i = 0; i < fp.length; i++) {
             h = ((h << 5) - h) + fp.charCodeAt(i);

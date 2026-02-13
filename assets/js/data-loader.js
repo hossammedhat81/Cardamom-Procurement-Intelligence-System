@@ -174,9 +174,42 @@ const DataLoader = (() => {
                     window.isCustomUpload = true;
                     window.isSampleData = false;
 
-                    // Clear any cached forecast so the live engine runs fresh for new data
+                    // Only clear cache if the data is actually DIFFERENT from what was cached
                     if (typeof Forecasting !== 'undefined' && Forecasting.clearCache) {
-                        Forecasting.clearCache();
+                        const newHash = typeof Forecasting.getDataFingerprint === 'function'
+                            ? Forecasting.getDataFingerprint()
+                            : null;
+                        // getDataFingerprint returns the CACHED hash; we need to compute new hash
+                        // If they match, data is same — keep cache. If different, clear.
+                        const computeHash = (d) => {
+                            if (!d || !d.length) return null;
+                            const indices = [];
+                            for (let i = 0; i < Math.min(5, d.length); i++) indices.push(i);
+                            const mid = Math.floor(d.length / 2);
+                            if (!indices.includes(mid)) indices.push(mid);
+                            for (let i = Math.max(0, d.length - 5); i < d.length; i++) {
+                                if (!indices.includes(i)) indices.push(i);
+                            }
+                            let fp = 'L' + d.length;
+                            indices.forEach(idx => {
+                                const row = d[idx]; if (!row) return;
+                                const t = String(row.time || '');
+                                const p = parseFloat(row['Avg.Price (Rs./Kg)']) || 0;
+                                fp += '|' + t + ':' + p.toFixed(2);
+                            });
+                            let h = 0;
+                            for (let i = 0; i < fp.length; i++) {
+                                h = ((h << 5) - h) + fp.charCodeAt(i); h = h & h;
+                            }
+                            return h;
+                        };
+                        const uploadHash = computeHash(validatedData.data);
+                        if (uploadHash !== null && uploadHash === newHash) {
+                            console.log('[DataLoader] Same data re-uploaded — keeping cached forecast');
+                        } else {
+                            console.log('[DataLoader] New data detected — clearing forecast cache');
+                            Forecasting.clearCache();
+                        }
                     }
 
                     const dates = validatedData.data.filter(r => r._date).map(r => r._date);
