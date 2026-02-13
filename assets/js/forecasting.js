@@ -16,9 +16,17 @@ const Forecasting = (() => {
 
     /**
      * Load forecast data from the active scenario's pre-computed JSON.
-     * There is NO fallback — if no scenario is active, this throws.
+     * If forecastData was already set directly (e.g. single-day for unknown CSV),
+     * it skips fetching and returns immediately.
+     * Otherwise, if no scenario is active, this throws.
      */
     async function loadForecast(progressCb) {
+        // If forecast was already set directly (e.g. unknown CSV single-day)
+        if (forecastData) {
+            if (progressCb) progressCb(100, 'Complete!');
+            return forecastData;
+        }
+
         if (progressCb) progressCb(10, 'Loading forecast data...');
 
         const scenario = (typeof DataLoader !== 'undefined' && DataLoader.getActiveScenario)
@@ -271,6 +279,18 @@ const Forecasting = (() => {
         forecastData = null;
     }
 
+    /**
+     * Set forecast data directly (for ad-hoc / unknown CSV single-day forecasts).
+     * Processes fields and generates analysis points.
+     */
+    function setForecast(data) {
+        forecastData = data;
+        ensureForecastFields();
+        if (!forecastData.analysis_points || forecastData.analysis_points.length === 0) {
+            forecastData.analysis_points = generateAnalysisPoints();
+        }
+    }
+
     return {
         loadForecast,
         runWhatIfScenario,
@@ -282,6 +302,7 @@ const Forecasting = (() => {
         getForecast,
         hasForecast,
         clearCache,
+        setForecast,
         EXCHANGE_RATES,
         CURRENCY_SYMBOLS,
     };

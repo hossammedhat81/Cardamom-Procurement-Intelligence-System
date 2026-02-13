@@ -447,5 +447,11 @@ const DataLoader = (() => {
         getActiveScenario: () => _activeScenario,
         getActiveRangeKey: () => _activeRangeKey,
         clearActiveScenario: () => { _activeScenario = null; _activeRangeKey = null; },
+        // Ad-hoc scenario for unknown CSV date ranges
+        setAdHocScenario: (scenario, rangeKey) => {
+            _activeScenario = scenario;
+            _activeRangeKey = rangeKey || 'adhoc';
+            console.log('[DataLoader] Ad-hoc scenario set:', scenario.label);
+        },
     };
 })();

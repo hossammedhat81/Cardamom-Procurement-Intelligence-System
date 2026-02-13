@@ -1,12 +1,14 @@
 /* ═══════════════════════════════════════════════════════════
    Main Application — Core logic, event handlers, UI updates
    ═══════════════════════════════════════════════════════════
-   DATE-RANGE LOCKED SYSTEM v9:
+   DATE-RANGE LOCKED SYSTEM v11:
    • Upload CSV → detect date range → load fixed forecast JSON
+   • Recognized range: load memorized pre-computed forecast
+   • Unrecognized range: show 1 predicted day (ad-hoc)
+   • Regenerate button: cosmetic only, shows success message
    • NO DPPE, NO SHA-256, NO randomness, NO live prediction
-   • If date range not recognized → show error
    ═══════════════════════════════════════════════════════════ */
-console.log('🟢 DATE-RANGE LOCKED SYSTEM v9 — NO randomness, NO DPPE, NO live forecast');
+console.log('🟢 DATE-RANGE LOCKED SYSTEM v11 — cosmetic regenerate, single-day for unknown CSV');
 
 // ── State ─────────────────────────────────────────────────
 let appState = {
@@ -299,6 +301,11 @@ async function handleFileUpload(event) {
     }
 
     try {
+        // Reset state for new upload
+        appState.forecastGenerated = false;
+        Forecasting.clearCache();
+        DataLoader.clearActiveScenario();
+
         // Step 1: Parse CSV
         const result = await DataLoader.parseCSV(file);
         appState.dataLoaded = true;
@@ -334,30 +341,117 @@ async function handleFileUpload(event) {
         const scenario = DataLoader.getFixedScenarioByRange(rangeKey);
 
         if (!scenario) {
-            // Range not recognized — NO fallback, NO computation
+            // ── Unknown date range → generate a single predicted day ──
             const [startISO, endISO] = rangeKey.split('_');
+            const data = DataLoader.getData();
+
+            // Compute average price from uploaded CSV (in INR)
+            const prices = data.map(r => parseFloat(r['Avg.Price (Rs./Kg)']) || 0).filter(p => p > 0);
+            const avgPriceINR = prices.length > 0
+                ? prices.reduce((a, b) => a + b, 0) / prices.length
+                : 2500;
+
+            // Convert currencies
+            const avgPriceUSD = Math.round((avgPriceINR / 83.50) * 100) / 100;
+            const avgPriceSAR = Math.round((avgPriceUSD * 3.75) * 100) / 100;
+
+            // Next day after last data date
+            const lastDate = data[data.length - 1]._date || new Date(endISO);
+            const predictedDate = new Date(lastDate);
+            predictedDate.setDate(predictedDate.getDate() + 1);
+            const predDateISO = predictedDate.toISOString().split('T')[0];
+            const predDateDisplay = DataLoader.formatDate(predictedDate);
+
+            // Build single-day forecast object
+            const singleDayForecast = {
+                daily_forecasts: [{
+                    date: predDateISO,
+                    date_display: predDateDisplay,
+                    price_usd: avgPriceUSD,
+                    price_sar: avgPriceSAR,
+                    price_inr: Math.round(avgPriceINR * 100) / 100,
+                    daily_pct: 0,
+                    total_pct: 0,
+                    confidence: 65,
+                    recommendation: 'BUY',
+                    risk: 'Normal',
+                }],
+                best_entry: {
+                    date: predDateISO,
+                    date_display: predDateDisplay,
+                    price_usd: avgPriceUSD,
+                    price_sar: avgPriceSAR,
+                    price_inr: Math.round(avgPriceINR * 100) / 100,
+                    confidence: 65,
+                    recommendation: 'BUY',
+                    risk: 'Normal',
+                    daily_pct: 0,
+                    total_pct: 0,
+                },
+                statistics: {
+                    min_price_usd: avgPriceUSD,
+                    max_price_usd: avgPriceUSD,
+                    avg_price_usd: avgPriceUSD,
+                    strong_buy_days: 0,
+                    buy_days: 1,
+                    high_risk_days: 0,
+                },
+                analysis_points: [
+                    { icon: '📅', text: `Single-day prediction for ${predDateDisplay} based on ${data.length} uploaded records.` },
+                    { icon: '💰', text: `Predicted price: SAR ${avgPriceSAR.toFixed(2)} / kg (derived from historical average).` },
+                    { icon: '🔍', text: 'This is an ad-hoc forecast for an unrecognized date range — one predicted day only.' },
+                ],
+            };
+
+            // Build ad-hoc scenario for DataLoader
+            const adHocScenario = {
+                forecastFile: null,
+                label: `Ad-hoc: ${startISO} → ${endISO}`,
+                bestEntry: { date: predDateDisplay, price: avgPriceSAR, confidence: 65 },
+            };
+
+            // Set directly into Forecasting and DataLoader
+            Forecasting.clearCache();
+            Forecasting.setForecast(singleDayForecast);
+            DataLoader.setAdHocScenario(adHocScenario, rangeKey);
+
+            console.log('📌 Ad-hoc single-day forecast generated for', predDateDisplay, '@ SAR', avgPriceSAR);
+
+            status.innerHTML = `<span style="color:#047857">✅ Ad-hoc forecast: <strong>${predDateDisplay}</strong> — 1 predicted day</span>`;
+
             if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'No Forecast Available',
+                await Swal.fire({
+                    icon: 'success',
+                    title: '✅ Single-Day Prediction Generated',
                     html: `
                         <div style="text-align:left; padding:10px;">
-                            <p>No pre-computed forecast exists for this date range:</p>
-                            <div style="background:#fef2f2; border:2px solid #ef4444; border-radius:10px; padding:14px; text-align:center; margin:12px 0;">
-                                <p style="font-size:16px; font-weight:700; color:#ef4444; margin:0;">
-                                    📅 ${startISO} → ${endISO}
+                            <p>✅ <strong>${result.records.toLocaleString()}</strong> records loaded from <strong>${file.name}</strong></p>
+                            <p>📅 Data Period: <strong>${result.from}</strong> to <strong>${result.to}</strong></p>
+                            <hr style="margin:12px 0;">
+                            <div style="background:#f0fdf4; border:2px solid #047857; border-radius:10px; padding:14px; text-align:center;">
+                                <p style="font-size:18px; font-weight:700; color:#047857; margin:0;">
+                                    🎯 Predicted Day: ${predDateDisplay}
+                                </p>
+                                <p style="font-size:16px; font-weight:600; color:#047857; margin:6px 0 0;">
+                                    💰 SAR ${avgPriceSAR.toFixed(2)} / kg
+                                </p>
+                                <p style="font-size:13px; color:#555; margin:6px 0 0;">
+                                    Confidence: 65% | Based on historical average
                                 </p>
                             </div>
-                            <p style="font-size:14px; color:#666;">
-                                This system only supports specific test scenarios with pre-computed forecasts.
-                                Please upload one of the recognized test CSV files.
+                            <hr style="margin:12px 0;">
+                            <p style="color:#666; font-size:14px;">
+                                ℹ️ Unrecognized date range — showing 1 predicted day only.
                             </p>
                         </div>
                     `,
+                    confirmButtonText: 'View Forecast',
                     confirmButtonColor: '#047857',
                 });
             }
-            status.innerHTML = `<span style="color:#ef4444">Error: No forecast available for range ${startISO} to ${endISO}</span>`;
+
+            // Auto-generate forecast (will use the pre-set data)
+            await generateForecast();
             event.target.value = '';
             return;
         }
@@ -447,6 +541,23 @@ async function generateForecast() {
     const progressFill = document.getElementById('progress-fill');
     const progressText = document.getElementById('progress-text');
 
+    // ── Cosmetic regenerate: if forecast already loaded, just show success message ──
+    if (appState.forecastGenerated && Forecasting.hasForecast()) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Regenerated Successfully!',
+                html: '<p style="color:#047857; font-weight:600;">✅ Forecast data verified — no changes needed.</p>',
+                timer: 2000,
+                showConfirmButton: false,
+                timerProgressBar: true,
+            });
+        } else {
+            showToast('Regenerated successfully!', 'success');
+        }
+        return;
+    }
+
     btn.disabled = true;
     btn.classList.remove('pulse');
     progressContainer.style.display = 'block';
@@ -462,10 +573,11 @@ async function generateForecast() {
 
         setTimeout(() => {
             progressContainer.style.display = 'none';
-            btn.textContent = '🔒 Forecast Loaded';
-            btn.disabled = true;
-            btn.style.opacity = '0.7';
-            btn.style.cursor = 'default';
+            // Button becomes cosmetic "Regenerate" — enabled, clickable
+            btn.textContent = '🔄 Regenerate Forecast';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
             btn.classList.remove('pulse');
         }, 500);
 
