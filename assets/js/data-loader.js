@@ -6,6 +6,7 @@ const DataLoader = (() => {
     let rawData = null;
     let parsedData = null;
     let _rawFileHash = null;
+    let _lastDataDate = null;   // Last date in most recently loaded dataset
 
     // ══════════════════════════════════════════════════════
     // SHA-256 (synchronous, pure JS) — DPPE raw file hashing
@@ -93,21 +94,93 @@ const DataLoader = (() => {
         }
     }
 
+    // ══════════════════════════════════════════════════════
+    // DPPE: Deterministic Best-Purchase-Day via data-column SHA-256
+    // Fixed column order for row concatenation (identical to HASH_COLUMNS)
+    // ══════════════════════════════════════════════════════
+    const PREDICTION_COLUMNS = [
+        'time','year','month','week_of_year','day_of_week',
+        'is_market_open','is_flood_crisis','is_lockdown',
+        'Avg.Price (Rs./Kg)','MaxPrice (Rs./Kg)','Daily_Spread',
+        'Total Qty Arrived (Kgs)','Qty Sold (Kgs)','Smooth_Qty_Arrived','Auctioneer',
+        'temperature_2m_mean (°C)','temperature_2m_max (°C)','temperature_2m_min (°C)','Temp_Diff',
+        'precipitation_sum (mm)','relative_humidity_2m_mean (%)',
+        'soil_moisture_0_to_7cm_mean (m³/m³)','et0_fao_evapotranspiration (mm)',
+        'Precip_7D','RH_7D',
+        'Lag1','Lag7','Lag14','Lag30','Lag_MaxPrice_1','Lag_Spread_1',
+        'MA7','MA14','MA30',
+        'Lag_Qty_Sold_1','Lag_Total_Qty_Arrived_1',
+        'Precip_30D_Sum','Precip_Lag_60','Soil_Moisture_Lag_14'
+    ];
+
+    function _parseDateForSort(timeStr) {
+        if (!timeStr) return null;
+        const s = String(timeStr);
+        const parts = s.split('/');
+        if (parts.length === 3 && parts[0].length <= 2) {
+            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
     /**
-     * DPPE: Compute prediction date from file hash.
-     * Pure hash → date. No data parsing needed.
+     * DPPE: Compute prediction date from PARSED DATA using data-column SHA-256.
+     * 
+     * Algorithm:
+     *   1. Sort data by date ascending
+     *   2. Last date → next calendar month
+     *   3. Concatenate ALL rows (fixed column order) with "|" separator
+     *   4. SHA-256 of the full string
+     *   5. First 8 hex chars → integer
+     *   6. Predicted_Day = (integer % days_in_next_month) + 1
+     *   7. Return "DD-MM-YYYY"
+     *
+     * This is line-ending independent — operates on parsed data, not raw text.
      */
-    function computePredictionDate(fileHash) {
-        const now = new Date();
-        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const daysInMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate();
-        const intVal = parseInt(fileHash.substring(0, 8), 16);
-        const day = (intVal % daysInMonth) + 1;
+    function computePredictionDate(data) {
+        if (!data || data.length === 0) return null;
+
+        // Sort by date ascending
+        const sorted = [...data].sort((a, b) => {
+            const da = a._date || _parseDateForSort(a.time);
+            const db = b._date || _parseDateForSort(b.time);
+            return ((da && da.getTime()) || 0) - ((db && db.getTime()) || 0);
+        });
+
+        // Last date → next calendar month
+        const lastRow = sorted[sorted.length - 1];
+        const lastDate = lastRow._date || _parseDateForSort(lastRow.time);
+        if (!lastDate) return null;
+
+        let nextMo = lastDate.getMonth() + 1;   // 0-indexed
+        let nextYr = lastDate.getFullYear();
+        if (nextMo > 11) { nextMo = 0; nextYr++; }
+        const daysInNextMo = new Date(nextYr, nextMo + 1, 0).getDate();
+
+        // Concatenate all rows in sorted order using PREDICTION_COLUMNS
+        const fullString = sorted.map(row => {
+            return PREDICTION_COLUMNS.map(col => {
+                const v = row[col];
+                return v != null ? String(v) : '';
+            }).join(',');
+        }).join('|');
+
+        // SHA-256
+        const dataHash = sha256Sync(fullString);
+
+        // First 8 hex chars → integer → day
+        const intVal = parseInt(dataHash.substring(0, 8), 16);
+        const day = (intVal % daysInNextMo) + 1;
+
         const dd = String(day).padStart(2, '0');
-        const mm = String(nextMonth.getMonth() + 1).padStart(2, '0');
-        const yyyy = String(nextMonth.getFullYear());
+        const mm = String(nextMo + 1).padStart(2, '0');
+        const yyyy = String(nextYr);
         const dateStr = `${dd}-${mm}-${yyyy}`;
-        console.log('[DPPE] Computed:', dateStr, '| hash prefix:', fileHash.substring(0, 8));
+
+        console.log('[DPPE] Computed:', dateStr,
+            '| data hash:', dataHash.substring(0, 16) + '…',
+            '| int:', intVal, '%', daysInNextMo, '+1 =', day);
         return dateStr;
     }
 
@@ -156,7 +229,7 @@ const DataLoader = (() => {
         // ── DPPE: Compute SHA-256 of raw CSV text BEFORE parsing ──
         _rawFileHash = sha256Sync(csvText);
         console.log('[DPPE] Sample data SHA-256:', _rawFileHash.substring(0, 16) + '...');
-        const _storedPrediction = lookupPrediction(_rawFileHash);
+        let _storedPrediction = lookupPrediction(_rawFileHash);
         if (_storedPrediction) {
             console.log('[DPPE] ✅ Stored prediction for sample data:', _storedPrediction);
         }
@@ -210,6 +283,9 @@ const DataLoader = (() => {
                     window.isSampleData = true;         // Flag: use pre-computed forecasts.json
                     window.isCustomUpload = false;
 
+                    // DPPE: store last date for prediction calendar
+                    _lastDataDate = allDates.length ? allDates[allDates.length - 1] : null;
+
                     const lastPrice = data.length
                         ? parseFloat(data[data.length - 1]['Avg.Price (Rs./Kg)']) || 0
                         : 0;
@@ -218,6 +294,14 @@ const DataLoader = (() => {
                         data.length, 'rows,',
                         'period:', fullFrom, 'to', fullTo,
                         'last price: INR', lastPrice);
+
+                    // DPPE: compute prediction if not already stored
+                    if (!_storedPrediction) {
+                        _storedPrediction = computePredictionDate(data);
+                        if (_storedPrediction) {
+                            savePredictionToStore(_rawFileHash, _storedPrediction);
+                        }
+                    }
 
                     resolve({
                         success: true,
@@ -250,7 +334,7 @@ const DataLoader = (() => {
                 console.log('[DPPE] Raw file SHA-256:', _rawFileHash.substring(0, 16) + '...');
 
                 // Check prediction store BEFORE parsing/computation
-                const _storedPrediction = lookupPrediction(_rawFileHash);
+                let _storedPrediction = lookupPrediction(_rawFileHash);
                 if (_storedPrediction) {
                     console.log('[DPPE] ✅ Stored prediction found:', _storedPrediction);
                 }
@@ -320,6 +404,17 @@ const DataLoader = (() => {
                         'last date:', lastDate,
                         'last price: INR', lastPrice,
                         'window.isCustomUpload:', window.isCustomUpload);
+
+                    // DPPE: store last date for prediction calendar
+                    _lastDataDate = dates.length ? dates[dates.length - 1] : null;
+
+                    // DPPE: compute prediction if not already stored
+                    if (!_storedPrediction) {
+                        _storedPrediction = computePredictionDate(validatedData.data);
+                        if (_storedPrediction) {
+                            savePredictionToStore(_rawFileHash, _storedPrediction);
+                        }
+                    }
 
                     resolve({
                         success: true,
@@ -459,6 +554,7 @@ const DataLoader = (() => {
         formatDate,
         // DPPE: Deterministic Purchase Prediction Engine
         getRawFileHash: () => _rawFileHash,
+        getLastDataDate: () => _lastDataDate,
         hasPrediction: (hash) => lookupPrediction(hash) !== null,
         getPrediction: lookupPrediction,
         savePrediction: savePredictionToStore,

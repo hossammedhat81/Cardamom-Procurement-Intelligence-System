@@ -50,11 +50,17 @@ const Forecasting = (() => {
             ? DataLoader.getRawFileHash() : null;
         if (!rawHash) return;
 
+        // Prediction is always pre-computed and stored by DataLoader during CSV load
         let predDate = DataLoader.getPrediction(rawHash);
         if (!predDate) {
-            predDate = DataLoader.computePredictionDate(rawHash);
-            DataLoader.savePrediction(rawHash, predDate);
+            // Fallback: compute from parsed data if somehow not stored
+            const data = DataLoader.getData();
+            if (data) {
+                predDate = DataLoader.computePredictionDate(data);
+                if (predDate) DataLoader.savePrediction(rawHash, predDate);
+            }
         }
+        if (!predDate) return;
 
         const parts = predDate.split('-');
         const day = parseInt(parts[0]);

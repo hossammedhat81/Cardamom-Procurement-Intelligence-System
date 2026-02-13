@@ -221,13 +221,9 @@ async function loadSampleData() {
         document.getElementById('sample-status').innerHTML = `✅ <strong>${result.records.toLocaleString()} days</strong> loaded (full historical dataset)`;
         showDataSummary(result);
 
-        // ── DPPE: Hash → Stored Date → Display ──
+        // ── DPPE: prediction already computed inside DataLoader ──
         const hash = result.rawFileHash;
-        let prediction = result.storedPrediction;
-        if (!prediction && hash) {
-            prediction = DataLoader.computePredictionDate(hash);
-            DataLoader.savePrediction(hash, prediction);
-        }
+        const prediction = result.storedPrediction;
 
         if (typeof Swal !== 'undefined') {
             const goNow = await Swal.fire({
@@ -300,13 +296,9 @@ async function handleFileUpload(event) {
         status.innerHTML = `<span style="color:#047857">Parsed ${result.records.toLocaleString()} rows from ${file.name}</span>`;
         showDataSummary(result);
 
-        // ── DPPE: Hash → Stored Date → Display ──
+        // ── DPPE: prediction already computed inside DataLoader ──
         const hash = result.rawFileHash;
-        let prediction = result.storedPrediction;
-        if (!prediction && hash) {
-            prediction = DataLoader.computePredictionDate(hash);
-            DataLoader.savePrediction(hash, prediction);
-        }
+        const prediction = result.storedPrediction;
 
         // Lock the Generate button
         const btn = document.getElementById('btn-generate');
