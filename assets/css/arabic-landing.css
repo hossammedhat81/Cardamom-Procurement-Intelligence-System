@@ -1,0 +1,334 @@
+/* ═══════════════════════════════════════════════════════════
+   Arabic Landing Page — RTL sections, product selector
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Arabic Font ───────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ── RTL Section Base ──────────────────────────────────────── */
+.rtl-section {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Noto Kufi Arabic', 'Inter', system-ui, sans-serif;
+}
+
+/* ── Arabic Hero / Landing ─────────────────────────────────── */
+.ar-landing {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7rem 1.5rem 4rem;
+    overflow: hidden;
+    background: var(--gradient-hero);
+}
+
+.ar-landing .hero-particles {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+}
+
+.ar-landing-content {
+    position: relative;
+    z-index: 2;
+    max-width: 900px;
+    width: 100%;
+    text-align: center;
+}
+
+/* Logo + Welcome row */
+.ar-welcome-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+/* TODO: Replace with actual company logo file at assets/images/company-logo.png */
+.ar-company-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.3);
+    object-fit: contain;
+    backdrop-filter: blur(10px);
+    padding: 8px;
+}
+
+.ar-welcome-text {
+    font-size: clamp(1.1rem, 3vw, 1.5rem);
+    font-weight: 600;
+    color: rgba(255,255,255,0.92);
+    letter-spacing: 0.01em;
+}
+
+.ar-landing-title {
+    font-size: clamp(2rem, 5.5vw, 3.5rem);
+    font-weight: 900;
+    color: white;
+    margin-bottom: 1rem;
+    line-height: 1.25;
+}
+
+.ar-landing-title .gradient-text-ar {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.ar-landing-desc {
+    font-size: clamp(0.95rem, 2vw, 1.15rem);
+    color: rgba(255,255,255,0.82);
+    max-width: 700px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.9;
+}
+
+/* ── "من نحن" About Card ──────────────────────────────────── */
+.ar-about-card {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 20px;
+    padding: 2rem 2.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: right;
+    direction: rtl;
+}
+
+.ar-about-card h3 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ar-about-card p {
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.82);
+    line-height: 2;
+    text-align: justify;
+    direction: rtl;
+}
+
+/* Scroll hint arrow */
+.ar-scroll-hint {
+    margin-top: 2.5rem;
+    text-align: center;
+}
+
+.ar-scroll-hint a {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    color: rgba(255,255,255,0.65);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.ar-scroll-hint a:hover {
+    color: rgba(255,255,255,0.95);
+}
+
+.ar-scroll-hint .arrow-down {
+    font-size: 1.5rem;
+    animation: bounceDown 1.5s ease-in-out infinite;
+}
+
+@keyframes bounceDown {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(8px); }
+}
+
+/* ── Product Selection Section ─────────────────────────────── */
+.ar-products {
+    padding: 4rem 1.5rem;
+    background: var(--bg-primary);
+}
+
+.ar-products-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.ar-products-title {
+    font-size: clamp(1.6rem, 4vw, 2.25rem);
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.35rem;
+    font-family: 'Noto Kufi Arabic', 'Inter', system-ui, sans-serif;
+}
+
+.ar-products-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 2.5rem;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+.ar-product-grid {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.ar-product-card {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 20px;
+    padding: 2.5rem 2rem 2rem;
+    width: 240px;
+    cursor: pointer;
+    transition: all 0.35s ease;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ar-product-card:hover,
+.ar-product-card:focus-visible {
+    border-color: var(--accent-green);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 40px rgba(4, 120, 87, 0.18);
+}
+
+.ar-product-card.active {
+    border-color: var(--accent-green);
+}
+
+.ar-product-card .product-icon {
+    font-size: 3rem;
+    margin-bottom: 0.25rem;
+}
+
+.ar-product-card .product-name-ar {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Noto Kufi Arabic', 'Inter', system-ui, sans-serif;
+}
+
+.ar-product-card .product-name-en {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+.ar-product-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.2rem 0.9rem;
+    background: var(--accent-green);
+    color: white;
+    border-radius: 50px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    font-family: 'Noto Kufi Arabic', 'Inter', system-ui, sans-serif;
+    white-space: nowrap;
+}
+
+/* Coming-soon cards */
+.ar-product-card.coming-soon {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+}
+
+.ar-product-card.coming-soon .product-name-ar {
+    color: var(--text-muted);
+}
+
+/* ── Dashboard Header ──────────────────────────────────────── */
+.ar-dashboard-header {
+    text-align: center;
+    padding: 3rem 1.5rem 1.5rem;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ar-dashboard-header h2 {
+    font-size: clamp(1.5rem, 4vw, 2.1rem);
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.35rem;
+    font-family: 'Noto Kufi Arabic', 'Inter', system-ui, sans-serif;
+}
+
+.ar-dashboard-header p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+.ar-dashboard-divider {
+    width: 60px;
+    height: 3px;
+    background: var(--accent-green);
+    margin: 1rem auto 0;
+    border-radius: 3px;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .ar-landing {
+        padding: 6rem 1rem 3rem;
+        min-height: auto;
+    }
+
+    .ar-company-logo {
+        width: 64px;
+        height: 64px;
+    }
+
+    .ar-about-card {
+        padding: 1.5rem 1.25rem;
+    }
+
+    .ar-products {
+        padding: 3rem 1rem;
+    }
+
+    .ar-product-card {
+        width: 200px;
+        padding: 2rem 1.5rem 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .ar-welcome-row {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .ar-product-card {
+        width: 100%;
+        max-width: 240px;
+    }
+
+    .ar-about-card p {
+        text-align: right;
+    }
+}

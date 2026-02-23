@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AI-powered Cardamom Procurement Intelligence System — 30-day price forecasting with Triple-Model AI Engine">
+    <meta name="description" content="منصة دعم قرار المشتريات — توقعات أسعار الهيل لمدة 30 يومًا | Cardamom Procurement Intelligence System">
     <meta name="theme-color" content="#0f172a">
-    <title>Cardamom Procurement Intelligence</title>
+    <title>منصة دعم قرار المشتريات | Cardamom Procurement Intelligence</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500&family=Noto+Kufi+Arabic:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <!-- Libraries (CDN) -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -34,6 +34,7 @@
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/dark-theme.css">
     <link rel="stylesheet" href="assets/css/animations.css">
+    <link rel="stylesheet" href="assets/css/arabic-landing.css">
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
@@ -45,9 +46,9 @@
     <div id="loading-screen" class="loading-screen">
         <div class="loader-content">
             <div class="loader-icon">🌿</div>
-            <h2>Cardamom Intelligence</h2>
+            <h2>منصة دعم قرار المشتريات</h2>
             <div class="loader-bar"><div class="loader-progress"></div></div>
-            <p class="loader-text">Loading AI models...</p>
+            <p class="loader-text">جارٍ التحميل...</p>
         </div>
     </div>
 
@@ -56,16 +57,16 @@
         <div class="nav-container">
             <a href="#" class="nav-brand">
                 <span class="nav-icon">🌿</span>
-                <span class="nav-title">Cardamom Intelligence</span>
+                <span class="nav-title">دعم المشتريات</span>
             </a>
             <div class="nav-links" id="nav-links">
-                <a href="#hero" class="nav-link active">Home</a>
-                <a href="#forecast" class="nav-link">Forecast</a>
-                <a href="#analytics" class="nav-link">Analytics</a>
-                <a href="#calculator" class="nav-link">Calculator</a>
-                <a href="#whatif" class="nav-link">What-If</a>
-                <a href="#export" class="nav-link">Export</a>
-                <a href="pages/about.html" class="nav-link">About</a>
+                <a href="#ar-landing" class="nav-link active">الرئيسية</a>
+                <a href="#ar-products" class="nav-link">المنتجات</a>
+                <a href="#forecast" class="nav-link">التوقعات</a>
+                <a href="#analytics" class="nav-link">التحليلات</a>
+                <a href="#calculator" class="nav-link">الحاسبة</a>
+                <a href="#whatif" class="nav-link">ماذا لو</a>
+                <a href="#export" class="nav-link">التصدير</a>
             </div>
             <div class="nav-actions">
                 <div class="currency-selector">
@@ -85,43 +86,139 @@
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <section id="hero" class="hero-section">
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- ARABIC LANDING HERO                                  -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="ar-landing" class="ar-landing rtl-section" dir="rtl">
         <div class="hero-particles" id="hero-particles"></div>
+        <div class="ar-landing-content fade-in">
+
+            <!-- Company welcome + logo -->
+            <div class="ar-welcome-row">
+                <!-- TODO: Replace placeholder with actual company logo at assets/images/company-logo.png -->
+                <img src="assets/images/company-logo.png"
+                     alt="شعار شركة خالد درع الدرع"
+                     class="ar-company-logo"
+                     onerror="this.style.display='none'">
+                <span class="ar-welcome-text">شركة خالد درع الدرع ترحب بكم</span>
+            </div>
+
+            <!-- Main title -->
+            <h1 class="ar-landing-title">
+                <span class="gradient-text-ar">منصة دعم قرار المشتريات</span>
+            </h1>
+
+            <!-- Platform description -->
+            <p class="ar-landing-desc">
+                منصة ذكية لدعم قرارات الشراء — توفّر توقعات الأسعار وتحليلات السوق
+                لمساعدتكم في اختيار التوقيت الأمثل للشراء بثقة واحترافية.
+            </p>
+
+            <!-- من نحن -->
+            <div class="ar-about-card fade-in">
+                <h3>🏢 من نحن</h3>
+                <p>
+                    شركة خالد درع الدرع وشريكه المحدودة، بخبرة تتجاوز 30 عامًا،
+                    تأسّست عام 1992 بالرياض، متخصصة في تجارة المواد الغذائية.
+                    تمتلك شركتنا خمس علامات تجارية رائدة
+                    (الذوّاق، الصفوة، فاتن، ست البيت، كوتو)
+                    وتقدم منتجات تشمل: الزيوت، الأرز، الحليب، القهوة، الهيل،
+                    المكسرات، البقوليات، والمعلبات.
+                    وتمتد شبكتنا لتغطي جميع مناطق المملكة،
+                    ونعمل بثقة وجودة اكتسبناها على مدى عقود.
+                </p>
+            </div>
+
+            <!-- Scroll hint -->
+            <div class="ar-scroll-hint">
+                <a href="#ar-products" onclick="event.preventDefault(); scrollToSection('ar-products')">
+                    اختر المنتج
+                    <span class="arrow-down">⬇</span>
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- PRODUCT SELECTION                                    -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="ar-products" class="ar-products rtl-section" dir="rtl">
+        <div class="ar-products-inner">
+            <h2 class="ar-products-title">اختر المنتج</h2>
+            <p class="ar-products-subtitle">Select Product</p>
+
+            <div class="ar-product-grid">
+                <!-- Active product: Cardamom -->
+                <a href="#dashboard" class="ar-product-card active" onclick="event.preventDefault(); scrollToSection('dashboard')" role="button" aria-label="اختيار الهيل">
+                    <span class="ar-product-badge">متاح الآن</span>
+                    <span class="product-icon">🌿</span>
+                    <span class="product-name-ar">الهيل</span>
+                    <span class="product-name-en">Cardamom</span>
+                </a>
+
+                <!-- Future products (coming soon) -->
+                <div class="ar-product-card coming-soon" aria-disabled="true">
+                    <span class="ar-product-badge" style="background:var(--text-muted)">قريبًا</span>
+                    <span class="product-icon">☕</span>
+                    <span class="product-name-ar">القهوة</span>
+                    <span class="product-name-en">Coffee</span>
+                </div>
+                <div class="ar-product-card coming-soon" aria-disabled="true">
+                    <span class="ar-product-badge" style="background:var(--text-muted)">قريبًا</span>
+                    <span class="product-icon">🌾</span>
+                    <span class="product-name-ar">الأرز</span>
+                    <span class="product-name-en">Rice</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- DASHBOARD HEADER (Arabic)                            -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div id="dashboard" class="ar-dashboard-header rtl-section" dir="rtl">
+        <h2>🌿 أهلاً بك في دعم مشتريات الهيل</h2>
+        <p>Cardamom Procurement Support</p>
+        <div class="ar-dashboard-divider"></div>
+    </div>
+
+    <!-- Original Hero Section (kept as dashboard intro) -->
+    <section id="hero" class="hero-section">
         <div class="hero-content fade-in">
-            <div class="hero-badge">Triple-Model AI Engine</div>
+            <div class="hero-badge">نظام توقعات ذكي</div>
             <h1 class="hero-title">
                 Cardamom Procurement<br>
                 <span class="gradient-text">Intelligence System</span>
             </h1>
             <p class="hero-subtitle">
-                AI-powered 30-day price forecasting with TimesFM, LSTM-CNN & XGBoost.
-                Make data-driven procurement decisions with confidence.
+                توقعات أسعار لمدة 30 يومًا باستخدام تحليلات متقدمة —
+                اتخذ قرارات شراء مدروسة بثقة.
             </p>
             <div class="hero-stats" id="hero-stats">
                 <div class="hero-stat slide-up" style="--delay:0.1s">
                     <span class="stat-value" id="stat-records">2,869</span>
-                    <span class="stat-label">Historical Records</span>
+                    <span class="stat-label">سجل تاريخي</span>
                 </div>
                 <div class="hero-stat slide-up" style="--delay:0.2s">
                     <span class="stat-value" id="stat-features">39</span>
-                    <span class="stat-label">AI Features</span>
+                    <span class="stat-label">مؤشر تحليلي</span>
                 </div>
                 <div class="hero-stat slide-up" style="--delay:0.3s">
                     <span class="stat-value">3</span>
-                    <span class="stat-label">AI Models</span>
+                    <span class="stat-label">نماذج تحليل</span>
                 </div>
                 <div class="hero-stat slide-up" style="--delay:0.4s">
                     <span class="stat-value">30</span>
-                    <span class="stat-label">Day Forecast</span>
+                    <span class="stat-label">يوم توقعات</span>
                 </div>
             </div>
             <div class="hero-actions slide-up" style="--delay:0.5s">
                 <button class="btn btn-primary btn-lg pulse" id="btn-get-forecast" onclick="scrollToSection('forecast')">
-                    🔮 Get Your Forecast
+                    🔮 ابدأ التوقعات
                 </button>
                 <button class="btn btn-outline btn-lg" onclick="scrollToSection('analytics')">
-                    📊 View Analytics
+                    📊 التحليلات
                 </button>
             </div>
             <div class="hero-updated" id="hero-updated"></div>
@@ -200,8 +297,8 @@
     <section id="forecast" class="section">
         <div class="container">
             <div class="section-header fade-in">
-                <h2>🔮 AI Procurement Intelligence</h2>
-                <p>Triple-model ensemble: TimesFM · LSTM-CNN · XGBoost</p>
+                <h2>🔮 توقعات الأسعار</h2>
+                <p>تحليلات متقدمة — توقعات مبنية على مؤشرات متعددة</p>
             </div>
 
             <button class="btn btn-primary btn-lg btn-generate" id="btn-generate" onclick="generateForecast()" disabled style="opacity:0.7; cursor:default;">
@@ -568,16 +665,16 @@
     <footer class="footer">
         <div class="container">
             <div class="footer-grid">
-                <div class="footer-col">
-                    <h4>🌿 Cardamom Intelligence</h4>
-                    <p>AI-powered procurement decisions for the global cardamom market.</p>
+                <div class="footer-col" dir="rtl" style="font-family:'Noto Kufi Arabic','Inter',sans-serif; text-align:right;">
+                    <h4>🌿 منصة دعم قرار المشتريات</h4>
+                    <p>توقعات أسعار ذكية لدعم قرارات الشراء في سوق الهيل.</p>
                 </div>
-                <div class="footer-col">
-                    <h4>Models</h4>
+                <div class="footer-col" dir="rtl" style="font-family:'Noto Kufi Arabic','Inter',sans-serif; text-align:right;">
+                    <h4>المميزات</h4>
                     <ul>
-                        <li>📈 TimesFM — Price Forecast</li>
-                        <li>🧠 LSTM-CNN — Risk Assessment</li>
-                        <li>🎯 XGBoost — Action Signal</li>
+                        <li>📈 توقعات الأسعار لـ 30 يومًا</li>
+                        <li>🧠 تحليل المخاطر</li>
+                        <li>🎯 توصيات الشراء</li>
                     </ul>
                 </div>
                 <div class="footer-col">
@@ -598,7 +695,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2026 Cardamom Procurement Intelligence. All rights reserved.</p>
+                <p>&copy; 2026 شركة خالد درع الدرع وشريكه المحدودة — منصة دعم قرار المشتريات</p>
                 <p class="footer-note">Fixed exchange rates. Consult your bank for live rates.</p>
             </div>
         </div>
